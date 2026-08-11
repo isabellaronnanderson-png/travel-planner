@@ -334,13 +334,23 @@ function NatureHeader() {
   );
 }
 
-function PinIllustration({ color, style }) {
+const RUSTIC_PIN_TONES = [
+  { rim: "#7A4423", mid: "#C1793D" },  // brass
+  { rim: "#5E2118", mid: "#9C3B2A" },  // old tin red
+  { rim: "#2E4B41", mid: "#557E6F" },  // verdigris
+  { rim: "#6B4E17", mid: "#B08B33" },  // tarnished gold
+];
+
+function PushpinIllustration({ toneIndex, style }) {
+  const tone = RUSTIC_PIN_TONES[toneIndex % RUSTIC_PIN_TONES.length];
   return (
-    <svg width="40" height="52" viewBox="0 0 40 52" style={{ filter: "drop-shadow(0 4px 4px rgba(0,0,0,0.25))", ...style }}>
-      <ellipse cx="20" cy="48" rx="9" ry="3" fill="rgba(0,0,0,0.15)" />
-      <path d="M20 2 C9 2 2 10 2 19 C2 32 20 46 20 46 C20 46 38 32 38 19 C38 10 31 2 20 2 Z" fill={color} stroke="#2E2B26" strokeWidth="2" />
-      <circle cx="20" cy="18" r="7" fill="#FFF9EE" stroke="#2E2B26" strokeWidth="1.5" />
-      <ellipse cx="13" cy="11" rx="3" ry="5" fill="#FFFFFF" opacity="0.5" transform="rotate(-20 13 11)" />
+    <svg width="34" height="46" viewBox="0 0 34 46" style={{ filter: "drop-shadow(0 5px 4px rgba(0,0,0,0.35))", ...style }}>
+      <ellipse cx="17" cy="41" rx="6" ry="2.2" fill="rgba(0,0,0,0.25)" />
+      <path d="M15.3 27 L17 43 L18.7 27 Z" fill="#8a8580" stroke="#57534d" strokeWidth="0.6" />
+      <circle cx="17" cy="15" r="13" fill={tone.rim} />
+      <circle cx="15" cy="13" r="10.5" fill={tone.mid} />
+      <ellipse cx="12" cy="9" rx="3.6" ry="5.4" fill="#FFFFFF" opacity="0.4" transform="rotate(-25 12 9)" />
+      <circle cx="17" cy="15" r="13" fill="none" stroke="rgba(0,0,0,0.25)" strokeWidth="1" />
     </svg>
   );
 }
@@ -361,40 +371,44 @@ function HomeView({ trips, onOpen, onNew, onDelete }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 30, paddingTop: 6 }}>
         {trips.map((trip, i) => {
           const gradient = CARD_GRADIENTS[i % CARD_GRADIENTS.length];
-          const pinColor = [ "#D9694F", "#6B8F5E", "#5B8AA6", "#E8A33D" ][i % 4];
-          const rot = i % 2 === 0 ? -9 : 7;
+          const pinRot = i % 2 === 0 ? -14 : 11;
+          const cardRot = i % 3 === 0 ? -1.6 : (i % 3 === 1 ? 1.1 : -0.6);
           const flipping = flippingId === trip.id;
           return (
             <div key={trip.id} className="pm-card-wrap" style={{ position: "relative" }}>
-              <PinIllustration
-                color={pinColor}
-                style={{ position: "absolute", top: -18, left: i % 2 === 0 ? 16 : "auto", right: i % 2 === 0 ? "auto" : 16, transform: `rotate(${rot}deg)`, zIndex: 2 }}
+              <PushpinIllustration
+                toneIndex={i}
+                style={{ position: "absolute", top: -20, left: i % 2 === 0 ? 22 : "auto", right: i % 2 === 0 ? "auto" : 22, transform: `rotate(${pinRot}deg)`, zIndex: 3 }}
               />
               <div
                 onClick={() => handleOpen(trip.id)}
                 className={"pm-card" + (flipping ? " pm-flipping" : "")}
                 style={{
                   position: "relative",
-                  background: "#FFFDF9",
-                  border: "1.5px solid rgba(46,43,38,0.12)",
-                  borderRadius: 14,
+                  background: "linear-gradient(135deg, #F8F1DE, #F1E7CC)",
+                  border: "1px solid rgba(90,72,42,0.18)",
+                  borderRadius: "4px 10px 5px 9px",
                   overflow: "hidden",
                   cursor: "pointer",
-                  boxShadow: "0 6px 16px var(--card-shadow)",
+                  padding: 9,
+                  boxShadow: "0 7px 14px var(--card-shadow), inset 0 0 0 1px rgba(255,255,255,0.4)",
+                  transform: `rotate(${cardRot}deg)`,
+                  backgroundImage:
+                    "radial-gradient(circle at 12% 85%, rgba(120,95,55,0.10), transparent 22%), radial-gradient(circle at 90% 12%, rgba(120,95,55,0.08), transparent 20%), linear-gradient(135deg, #F8F1DE, #F1E7CC)",
                 }}
               >
                 <button
                   onClick={(e) => { e.stopPropagation(); onDelete(trip.id); }}
-                  style={{ position: "absolute", top: 8, right: 8, background: "rgba(255,255,255,0.75)", borderRadius: "50%", border: "none", width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 2 }}
+                  style={{ position: "absolute", top: 14, right: 14, background: "rgba(255,255,255,0.8)", borderRadius: "50%", border: "none", width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 2 }}
                   aria-label="Delete trip"
                 >
                   <X size={13} />
                 </button>
-                <div style={{ height: 108, background: gradient, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Compass size={38} color="#FFFFFF" style={{ opacity: 0.9 }} />
+                <div style={{ height: 104, borderRadius: "2px 7px 3px 6px", background: gradient, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid rgba(40,32,20,0.55)" }}>
+                  <Compass size={36} color="#FFFFFF" style={{ opacity: 0.9 }} />
                 </div>
-                <div style={{ padding: "14px 16px 16px" }}>
-                  <div className="pm-hand" style={{ fontSize: 27, fontWeight: 700, lineHeight: 1 }}>{trip.name}</div>
+                <div style={{ padding: "12px 6px 6px" }}>
+                  <div className="pm-hand" style={{ fontSize: 27, fontWeight: 700, lineHeight: 1, color: "#3B2E1A" }}>{trip.name}</div>
                   <div className="pm-mono" style={{ fontSize: 11, color: "var(--ink-soft)", marginTop: 6 }}>
                     {tripDateRange(trip)} · {trip.days.length}d
                   </div>
@@ -851,8 +865,24 @@ function PinForm({ days, onCancel, onSubmit, initialLat, initialLng }) {
 // Once deployed, remember to restrict the key in Google Cloud Console to
 // your Vercel domain (HTTP referrer restriction), since any client-side
 // Maps key is visible in the browser's network requests.
+// Vite only exposes env vars to the browser bundle when they're prefixed
+// with VITE_. If you named yours something else in Vercel, rename it to
+// one of these (Project Settings -> Environment Variables) and redeploy.
+const ENV_KEY_NAMES = ["VITE_GOOGLE_MAPS_API_KEY", "VITE_GOOGLE_PLACES_API_KEY", "VITE_GOOGLE_API_KEY", "VITE_GMAPS_API_KEY"];
+function getEnvApiKey() {
+  for (const name of ENV_KEY_NAMES) {
+    const v = import.meta.env[name];
+    if (v) return v;
+  }
+  return "";
+}
+
 function GoogleMapTab({ trip, updateTrip }) {
-  const [apiKey, setApiKey] = useState(() => { try { return localStorage.getItem(GMAPS_KEY_STORAGE) || ""; } catch (e) { return ""; } });
+  const envKey = getEnvApiKey();
+  const [apiKey, setApiKey] = useState(() => {
+    if (envKey) return envKey;
+    try { return localStorage.getItem(GMAPS_KEY_STORAGE) || ""; } catch (e) { return ""; }
+  });
   const [keyInput, setKeyInput] = useState("");
   const [status, setStatus] = useState(apiKey ? "loading" : "needs-key");
   const [pendingLatLng, setPendingLatLng] = useState(null);
@@ -878,7 +908,7 @@ function GoogleMapTab({ trip, updateTrip }) {
     if (existing) { existing.addEventListener("load", () => setStatus("ready")); return; }
     const script = document.createElement("script");
     script.id = "pm-gmaps-script";
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=places`;
     script.async = true;
     script.onload = () => setStatus("ready");
     script.onerror = () => setStatus("error");
@@ -932,9 +962,11 @@ function GoogleMapTab({ trip, updateTrip }) {
   if (status === "needs-key") {
     return (
       <div style={{ background: "#FAF8F4", border: "1.5px dashed rgba(46,43,38,0.25)", borderRadius: 12, padding: 24, maxWidth: 460 }}>
-        <div className="pm-display" style={{ fontSize: 20, marginBottom: 8 }}>Connect Google Maps</div>
+        <div className="pm-display" style={{ fontSize: 20, marginBottom: 8 }}>No API key found</div>
         <div style={{ fontSize: 13, color: "var(--ink-soft)", marginBottom: 14 }}>
-          Paste your Maps JavaScript API key. It's saved only in this browser — never in the code you deploy. Once live, restrict the key to your domain in Google Cloud Console.
+          This looks for a Vercel environment variable named <code>VITE_GOOGLE_MAPS_API_KEY</code> (Project Settings → Environment Variables), then redeploy. It has to have the <code>VITE_</code> prefix or Vite won't include it in the site. You'll also want the <strong>Maps JavaScript API</strong> enabled on that key, alongside Places.
+          <br /><br />
+          Or paste a key here just for this browser, as a fallback:
         </div>
         <input className="pm-input" value={keyInput} onChange={(e) => setKeyInput(e.target.value)} placeholder="AIza…" style={{ marginBottom: 10 }} />
         <button className="pm-btn pm-btn-solid" onClick={saveKey}>Connect</button>
@@ -942,14 +974,18 @@ function GoogleMapTab({ trip, updateTrip }) {
     );
   }
   if (status === "error") {
-    return <div style={{ fontSize: 13, color: "var(--coral)" }}>Couldn't load Google Maps with that key. <button className="pm-btn pm-btn-ghost" onClick={forgetKey} style={{ marginLeft: 8 }}>try a different key</button></div>;
+    return <div style={{ fontSize: 13, color: "var(--coral)" }}>Couldn't load Google Maps with that key. {!envKey && <button className="pm-btn pm-btn-ghost" onClick={forgetKey} style={{ marginLeft: 8 }}>try a different key</button>}</div>;
   }
 
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <div className="pm-mono" style={{ fontSize: 11, color: "var(--ink-soft)" }}>click anywhere on the map to drop a pin</div>
-        <button className="pm-btn pm-btn-ghost" onClick={forgetKey} style={{ fontSize: 11 }}>disconnect</button>
+        {envKey ? (
+          <span className="pm-mono" style={{ fontSize: 10, color: "var(--meadow)" }}>connected via Vercel</span>
+        ) : (
+          <button className="pm-btn pm-btn-ghost" onClick={forgetKey} style={{ fontSize: 11 }}>disconnect</button>
+        )}
       </div>
       <div ref={mapRef} style={{ width: "100%", height: 420, borderRadius: 12, border: "1.5px solid rgba(46,43,38,0.15)", background: "#FAF8F4" }} />
       {status === "loading" && <div style={{ marginTop: 10, fontSize: 12, color: "var(--ink-soft)" }}>loading map…</div>}
