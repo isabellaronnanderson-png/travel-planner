@@ -289,14 +289,12 @@ function useGoogleMapsReady() {
   return ready;
 }
 
-function thumbtackIconUrl(main, dark) {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="52" viewBox="0 0 36 52">
-    <path d="M17 30 L27 47" stroke="#1a1a1a" stroke-width="5" stroke-linecap="round"/>
-    <path d="M17 30 L27 47" stroke="#D2D2D2" stroke-width="2.4" stroke-linecap="round"/>
-    <rect x="9" y="16" width="16" height="16" rx="2" fill="${dark}" stroke="#1a1a1a" stroke-width="2"/>
-    <rect x="11" y="16" width="4" height="16" fill="#fff" opacity="0.22"/>
-    <ellipse cx="17" cy="15" rx="16" ry="8" fill="${main}" stroke="#1a1a1a" stroke-width="2.2"/>
-    <ellipse cx="11" cy="11" rx="4.6" ry="2.2" fill="#fff" opacity="0.55" transform="rotate(-12 11 11)"/>
+function thumbtackIconUrl(main) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="44" viewBox="0 0 32 44">
+    <path d="M16 20 L25 38" stroke="#1a1a1a" stroke-width="4.5" stroke-linecap="round"/>
+    <path d="M16 20 L25 38" stroke="#D2D2D2" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="15" cy="13" r="13" fill="${main}" stroke="#1a1a1a" stroke-width="2.2"/>
+    <ellipse cx="10" cy="9" rx="4" ry="2.2" fill="#fff" opacity="0.5" transform="rotate(-12 10 9)"/>
   </svg>`;
   return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
 }
@@ -355,7 +353,7 @@ export default function App() {
   return (
     <div className="pm-root">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Rye&family=Nunito:ital,wght@0,400;0,600;0,700;1,600&family=Caveat:wght@600;700&family=Space+Mono:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Bungee+Shade&family=Rye&family=Nunito:ital,wght@0,400;0,600;0,700;1,600&family=Caveat:wght@600;700&family=Space+Mono:wght@400;700&display=swap');
 
         .pm-root {
           --forest: #2E5940;
@@ -381,7 +379,7 @@ export default function App() {
             linear-gradient(100deg, var(--wood), #4E3A26 50%, var(--wood));
         }
         .pm-root * { box-sizing: border-box; }
-        .pm-display { font-family: 'Rye', serif; }
+        .pm-display { font-family: 'Bungee Shade', 'Rye', serif; }
         .pm-hand { font-family: 'Caveat', cursive; }
         .pm-mono { font-family: 'Space Mono', monospace; }
         .pm-btn {
@@ -504,14 +502,12 @@ function Masthead() {
 
 function Thumbtack({ tone, style }) {
   return (
-    <svg width="36" height="52" viewBox="0 0 36 52" style={{ filter: "drop-shadow(0 5px 5px rgba(0,0,0,0.45))", ...style }}>
-      <ellipse cx="20" cy="46" rx="4.5" ry="1.6" fill="rgba(0,0,0,0.32)" />
-      <path d="M17 30 L27 47" stroke="#1a1a1a" strokeWidth="5" strokeLinecap="round" />
-      <path d="M17 30 L27 47" stroke="#D2D2D2" strokeWidth="2.4" strokeLinecap="round" />
-      <rect x="9" y="16" width="16" height="16" rx="2" fill={tone.dark} stroke="#1a1a1a" strokeWidth="2" />
-      <rect x="11" y="16" width="4" height="16" fill="#fff" opacity="0.22" />
-      <ellipse cx="17" cy="15" rx="16" ry="8" fill={tone.main} stroke="#1a1a1a" strokeWidth="2.2" />
-      <ellipse cx="11" cy="11" rx="4.6" ry="2.2" fill="#fff" opacity="0.55" transform="rotate(-12 11 11)" />
+    <svg width="32" height="44" viewBox="0 0 32 44" style={{ filter: "drop-shadow(0 5px 5px rgba(0,0,0,0.45))", ...style }}>
+      <ellipse cx="17" cy="40" rx="4" ry="1.5" fill="rgba(0,0,0,0.32)" />
+      <path d="M16 20 L25 38" stroke="#1a1a1a" strokeWidth="4.5" strokeLinecap="round" />
+      <path d="M16 20 L25 38" stroke="#D2D2D2" strokeWidth="2" strokeLinecap="round" />
+      <circle cx="15" cy="13" r="13" fill={tone.main} stroke="#1a1a1a" strokeWidth="2.2" />
+      <ellipse cx="10" cy="9" rx="4" ry="2.2" fill="#fff" opacity="0.5" transform="rotate(-12 10 9)" />
     </svg>
   );
 }
@@ -537,17 +533,41 @@ function PostmarkStamp({ accent, index, topText }) {
 
 function ArchedTitle({ name, index }) {
   const pathId = `pm-title-arc-${index}`;
-  const fontSize = name.length > 18 ? 30 : name.length > 11 ? 38 : 46;
+  const [fontSize, setFontSize] = useState(56);
+
+  useEffect(() => {
+    let cancelled = false;
+    const maxSize = 78;
+    const minSize = 18;
+    const targetWidth = 300; // svg units the text is allowed to occupy along the arc
+    async function fit() {
+      try {
+        await document.fonts.load(`${maxSize}px 'Bungee Shade'`);
+        await document.fonts.ready;
+      } catch (e) { /* ignore */ }
+      if (cancelled) return;
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      ctx.font = `${maxSize}px 'Bungee Shade'`;
+      const width = ctx.measureText(name || "").width || 1;
+      let size = Math.min(maxSize, maxSize * (targetWidth / width));
+      size = Math.max(minSize, Math.min(maxSize, size));
+      if (!cancelled) setFontSize(size);
+    }
+    fit();
+    return () => { cancelled = true; };
+  }, [name]);
+
   return (
     <svg viewBox="0 0 320 220" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
       <defs>
-        <path id={pathId} d="M 20,155 Q 160,45 300,155" />
+        <path id={pathId} d="M 12,178 Q 165,28 308,138" />
       </defs>
       <text
         fontSize={fontSize}
         fill="#fff"
         stroke="#1a1a1a"
-        strokeWidth="7"
+        strokeWidth="4.5"
         strokeLinejoin="round"
         paintOrder="stroke"
         className="pm-display"
@@ -1295,9 +1315,9 @@ function GoogleMapTab({ trip, updateTrip }) {
         map: mapObjRef.current,
         title: pin.name,
         icon: {
-          url: thumbtackIconUrl(meta.ramp, meta.dark),
-          scaledSize: new window.google.maps.Size(30, 43),
-          anchor: new window.google.maps.Point(22, 39),
+          url: thumbtackIconUrl(meta.ramp),
+          scaledSize: new window.google.maps.Size(28, 38),
+          anchor: new window.google.maps.Point(21, 34),
         },
       });
       marker.addListener("click", () => { setSelectedPinId(pin.id); setEditingPin(null); setPendingLatLng(null); });
