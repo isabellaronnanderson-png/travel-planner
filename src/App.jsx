@@ -217,9 +217,9 @@ function buildSeedTrip() {
 }
 
 const CATEGORY_META = {
-  restaurant: { label: "Restaurants", icon: Utensils, ramp: "#C1591F", dark: "#7A3811" },
-  spot: { label: "Spots", icon: MapPin, ramp: "#3C7A54", dark: "#1F4A32" },
-  hotel: { label: "Hotels", icon: BedDouble, ramp: "#2C5F9E", dark: "#1B3F6B" },
+  restaurant: { label: "Restaurants", icon: Utensils, ramp: "#C1591F" },
+  spot: { label: "Spots", icon: MapPin, ramp: "#3C7A54" },
+  hotel: { label: "Hotels", icon: BedDouble, ramp: "#2C5F9E" },
 };
 
 const CARD_GRADIENTS = [
@@ -229,13 +229,16 @@ const CARD_GRADIENTS = [
   "linear-gradient(135deg,#B98A2E,#6B4E17)",
 ];
 
-// Classic pushpin colors, each with a lighter cap tone and a darker collar tone.
-const PIN_TONES = [
-  { main: "#E8402E", dark: "#A82418" },
-  { main: "#2F7A46", dark: "#1F5230" },
-  { main: "#2C5F9E", dark: "#1B3F6B" },
-  { main: "#E8A33D", dark: "#A8721F" },
-];
+// Classic pushpin colors — the darker collar/disc tone is derived automatically.
+const PIN_TONES = ["#E8402E", "#2F7A46", "#2C5F9E", "#E8A33D"];
+
+function shadeColor(hex, amt) {
+  const n = parseInt(hex.slice(1), 16);
+  const r = Math.max(0, Math.min(255, (n >> 16) + amt));
+  const g = Math.max(0, Math.min(255, ((n >> 8) & 255) + amt));
+  const b = Math.max(0, Math.min(255, (n & 255) + amt));
+  return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+}
 
 function tripDateRange(trip) {
   if (!trip.days.length) return "";
@@ -290,11 +293,19 @@ function useGoogleMapsReady() {
 }
 
 function thumbtackIconUrl(main) {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="44" viewBox="0 0 32 44">
-    <path d="M16 20 L25 38" stroke="#1a1a1a" stroke-width="4.5" stroke-linecap="round"/>
-    <path d="M16 20 L25 38" stroke="#D2D2D2" stroke-width="2" stroke-linecap="round"/>
-    <circle cx="15" cy="13" r="13" fill="${main}" stroke="#1a1a1a" stroke-width="2.2"/>
-    <ellipse cx="10" cy="9" rx="4" ry="2.2" fill="#fff" opacity="0.5" transform="rotate(-12 10 9)"/>
+  const dark = shadeColor(main, -18);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="58" viewBox="0 0 36 58">
+    <path d="M18 28 L18 52" stroke="#1a1a1a" stroke-width="4" stroke-linecap="round"/>
+    <path d="M18 28 L18 52" stroke="#D2D2D2" stroke-width="1.8" stroke-linecap="round"/>
+    <ellipse cx="18" cy="33" rx="15" ry="7" fill="${dark}" stroke="#1a1a1a" stroke-width="2"/>
+    <ellipse cx="18" cy="30" rx="15" ry="7" fill="${main}" stroke="#1a1a1a" stroke-width="2"/>
+    <ellipse cx="18" cy="29" rx="7" ry="2.5" fill="${main}" stroke="#1a1a1a" stroke-width="2"/>
+    <rect x="11" y="13" width="14" height="16" fill="${main}" stroke="none"/>
+    <line x1="11" y1="13" x2="11" y2="29" stroke="#1a1a1a" stroke-width="2"/>
+    <line x1="25" y1="13" x2="25" y2="29" stroke="#1a1a1a" stroke-width="2"/>
+    <rect x="13" y="15" width="3" height="12" rx="1.5" fill="#fff" opacity="0.3"/>
+    <ellipse cx="18" cy="9" rx="11" ry="6" fill="${main}" stroke="#1a1a1a" stroke-width="2.2"/>
+    <ellipse cx="14" cy="7" rx="3" ry="2" fill="#fff" opacity="0.45" transform="rotate(-15 14 7)"/>
   </svg>`;
   return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
 }
@@ -500,22 +511,38 @@ function Masthead() {
   );
 }
 
-function Thumbtack({ tone, style }) {
+function Thumbtack({ color, style }) {
+  const dark = shadeColor(color, -18);
   return (
-    <svg width="32" height="44" viewBox="0 0 32 44" style={{ filter: "drop-shadow(0 5px 5px rgba(0,0,0,0.45))", ...style }}>
-      <ellipse cx="17" cy="40" rx="4" ry="1.5" fill="rgba(0,0,0,0.32)" />
-      <path d="M16 20 L25 38" stroke="#1a1a1a" strokeWidth="4.5" strokeLinecap="round" />
-      <path d="M16 20 L25 38" stroke="#D2D2D2" strokeWidth="2" strokeLinecap="round" />
-      <circle cx="15" cy="13" r="13" fill={tone.main} stroke="#1a1a1a" strokeWidth="2.2" />
-      <ellipse cx="10" cy="9" rx="4" ry="2.2" fill="#fff" opacity="0.5" transform="rotate(-12 10 9)" />
+    <svg width="34" height="55" viewBox="0 0 36 58" style={{ filter: "drop-shadow(0 5px 5px rgba(0,0,0,0.45))", ...style }}>
+      <ellipse cx="18" cy="53" rx="4" ry="1.6" fill="rgba(0,0,0,0.3)" />
+      <path d="M18 28 L18 52" stroke="#1a1a1a" strokeWidth="4" strokeLinecap="round" />
+      <path d="M18 28 L18 52" stroke="#D2D2D2" strokeWidth="1.8" strokeLinecap="round" />
+      <ellipse cx="18" cy="33" rx="15" ry="7" fill={dark} stroke="#1a1a1a" strokeWidth="2" />
+      <ellipse cx="18" cy="30" rx="15" ry="7" fill={color} stroke="#1a1a1a" strokeWidth="2" />
+      <ellipse cx="18" cy="29" rx="7" ry="2.5" fill={color} stroke="#1a1a1a" strokeWidth="2" />
+      <rect x="11" y="13" width="14" height="16" fill={color} stroke="none" />
+      <line x1="11" y1="13" x2="11" y2="29" stroke="#1a1a1a" strokeWidth="2" />
+      <line x1="25" y1="13" x2="25" y2="29" stroke="#1a1a1a" strokeWidth="2" />
+      <rect x="13" y="15" width="3" height="12" rx="1.5" fill="#fff" opacity="0.3" />
+      <ellipse cx="18" cy="9" rx="11" ry="6" fill={color} stroke="#1a1a1a" strokeWidth="2.2" />
+      <ellipse cx="14" cy="7" rx="3" ry="2" fill="#fff" opacity="0.45" transform="rotate(-15 14 7)" />
     </svg>
   );
 }
 
+const STAMP_PLACEMENTS = [
+  { top: 4, right: 6, rot: 6 },
+  { top: 10, right: -2, rot: -8 },
+  { top: 2, right: 14, rot: 9 },
+  { top: 12, right: 4, rot: -5 },
+];
+
 function PostmarkStamp({ accent, index, topText }) {
   const pathId = `pm-stamp-path-${index}`;
+  const placement = STAMP_PLACEMENTS[index % STAMP_PLACEMENTS.length];
   return (
-    <svg width="86" height="86" viewBox="0 0 100 100" style={{ position: "absolute", top: 8, right: 8, transform: `rotate(${index % 2 === 0 ? 6 : -5}deg)`, opacity: 0.92 }}>
+    <svg width="76" height="76" viewBox="0 0 100 100" style={{ position: "absolute", top: placement.top, right: placement.right, transform: `rotate(${placement.rot}deg)`, zIndex: 2 }}>
       <defs>
         <path id={pathId} d="M 50,50 m -38,0 a 38,38 0 1,1 76,0 a 38,38 0 1,1 -76,0" />
       </defs>
@@ -525,54 +552,69 @@ function PostmarkStamp({ accent, index, topText }) {
         <textPath href={`#${pathId}`} startOffset="25%" textAnchor="middle">{topText}</textPath>
       </text>
       <line x1="20" y1="50" x2="80" y2="50" stroke={accent} strokeWidth="1.4" />
-      <text x="50" y="44" textAnchor="middle" fontSize="15" fontWeight="700" fill={accent} className="pm-display">POST</text>
+      <text x="50" y="44" textAnchor="middle" fontSize="15" fontWeight="700" fill={accent} style={{ fontFamily: "'Rye', serif" }}>POST</text>
       <text x="50" y="66" textAnchor="middle" fontSize="7" fill={accent} letterSpacing="1.5">MARK</text>
     </svg>
   );
 }
 
-function ArchedTitle({ name, index }) {
-  const pathId = `pm-title-arc-${index}`;
-  const [fontSize, setFontSize] = useState(56);
-
-  useEffect(() => {
-    let cancelled = false;
-    const maxSize = 78;
-    const minSize = 18;
-    const targetWidth = 300; // svg units the text is allowed to occupy along the arc
-    async function fit() {
-      try {
-        await document.fonts.load(`${maxSize}px 'Bungee Shade'`);
-        await document.fonts.ready;
-      } catch (e) { /* ignore */ }
-      if (cancelled) return;
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-      ctx.font = `${maxSize}px 'Bungee Shade'`;
-      const width = ctx.measureText(name || "").width || 1;
-      let size = Math.min(maxSize, maxSize * (targetWidth / width));
-      size = Math.max(minSize, Math.min(maxSize, size));
-      if (!cancelled) setFontSize(size);
+function fontSizeForLen(len) {
+  return len <= 9 ? 58 : len <= 14 ? 48 : len <= 20 ? 40 : len <= 28 ? 32 : 24;
+}
+function targetLengthForLen(len) {
+  return Math.max(120, Math.min(285, len * 24 + 50));
+}
+function splitTwoLines(name) {
+  if (name.length <= 15) return [name];
+  const mid = Math.floor(name.length / 2);
+  let bestIdx = -1, bestDist = Infinity;
+  for (let i = 0; i < name.length; i++) {
+    if (name[i] === " ") {
+      const d = Math.abs(i - mid);
+      if (d < bestDist) { bestDist = d; bestIdx = i; }
     }
-    fit();
-    return () => { cancelled = true; };
-  }, [name]);
+  }
+  if (bestIdx === -1) return [name];
+  return [name.slice(0, bestIdx).trim(), name.slice(bestIdx + 1).trim()];
+}
 
+function ArchedTitle({ name, index }) {
+  const lines = splitTwoLines(name || "");
+  const singlePath = "M 15,150 Q 160,95 305,75";
+  const topPath = "M 20,110 Q 160,50 300,58";
+  const bottomPath = "M 15,178 Q 160,128 305,112";
+
+  if (lines.length === 1) {
+    const fontSize = fontSizeForLen(name.length);
+    const targetLength = targetLengthForLen(name.length);
+    const pathId = `pm-title-arc-${index}`;
+    return (
+      <svg viewBox="0 0 320 220" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
+        <defs><path id={pathId} d={singlePath} /></defs>
+        <text fontSize={fontSize} textLength={targetLength} lengthAdjust="spacingAndGlyphs" fill="#fff" stroke="#1a1a1a" strokeWidth="4.5" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
+          <textPath href={`#${pathId}`} startOffset="50%" textAnchor="middle">{name}</textPath>
+        </text>
+      </svg>
+    );
+  }
+
+  const [line1, line2] = lines;
+  const fontSize = Math.min(fontSizeForLen(line1.length), fontSizeForLen(line2.length));
+  const len1 = targetLengthForLen(line1.length);
+  const len2 = targetLengthForLen(line2.length);
+  const id1 = `pm-title-arc-top-${index}`;
+  const id2 = `pm-title-arc-bottom-${index}`;
   return (
     <svg viewBox="0 0 320 220" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
       <defs>
-        <path id={pathId} d="M 12,178 Q 165,28 308,138" />
+        <path id={id1} d={topPath} />
+        <path id={id2} d={bottomPath} />
       </defs>
-      <text
-        fontSize={fontSize}
-        fill="#fff"
-        stroke="#1a1a1a"
-        strokeWidth="4.5"
-        strokeLinejoin="round"
-        paintOrder="stroke"
-        className="pm-display"
-      >
-        <textPath href={`#${pathId}`} startOffset="50%" textAnchor="middle">{name}</textPath>
+      <text fontSize={fontSize} textLength={len1} lengthAdjust="spacingAndGlyphs" fill="#fff" stroke="#1a1a1a" strokeWidth="4" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
+        <textPath href={`#${id1}`} startOffset="50%" textAnchor="middle">{line1}</textPath>
+      </text>
+      <text fontSize={fontSize} textLength={len2} lengthAdjust="spacingAndGlyphs" fill="#fff" stroke="#1a1a1a" strokeWidth="4" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
+        <textPath href={`#${id2}`} startOffset="50%" textAnchor="middle">{line2}</textPath>
       </text>
     </svg>
   );
@@ -583,13 +625,13 @@ function TripCard({ trip, index, onOpen, onDelete, flipping, onStartFlip }) {
   const tone = PIN_TONES[index % PIN_TONES.length];
   const pinRot = index % 2 === 0 ? -14 : 11;
   const cardRot = index % 3 === 0 ? -1.4 : (index % 3 === 1 ? 1 : -0.5);
-  const stampAccent = PIN_TONES[(index + 1) % PIN_TONES.length].main;
+  const stampAccent = PIN_TONES[(index + 1) % PIN_TONES.length];
 
   return (
     <div className="pm-card-wrap" style={{ position: "relative" }}>
       <Thumbtack
-        tone={tone}
-        style={{ position: "absolute", top: -20, left: index % 2 === 0 ? 26 : "auto", right: index % 2 === 0 ? "auto" : 26, transform: `rotate(${pinRot}deg)`, zIndex: 3 }}
+        color={tone}
+        style={{ position: "absolute", top: -24, left: index % 2 === 0 ? 26 : "auto", right: index % 2 === 0 ? "auto" : 26, transform: `rotate(${pinRot}deg)`, zIndex: 3 }}
       />
       <div
         onClick={() => onStartFlip(trip.id)}
@@ -599,7 +641,6 @@ function TripCard({ trip, index, onOpen, onDelete, flipping, onStartFlip }) {
           background: "#FFFFFF",
           border: "1px solid rgba(0,0,0,0.08)",
           borderRadius: "4px 10px 5px 9px",
-          overflow: "hidden",
           cursor: "pointer",
           padding: 9,
           boxShadow: "0 10px 20px var(--card-shadow)",
@@ -615,9 +656,9 @@ function TripCard({ trip, index, onOpen, onDelete, flipping, onStartFlip }) {
         </button>
 
         <div style={{ position: "relative", height: 220, borderRadius: "2px 7px 3px 6px", overflow: "hidden", background: trip.coverImage ? `center / cover no-repeat url(${trip.coverImage})` : gradient, border: "2px solid rgba(0,0,0,0.65)" }}>
-          <PostmarkStamp accent={stampAccent} index={index} topText={`★ ${formatDateShort(trip.days[0] ? trip.days[0].date : "")} ★`} />
           <ArchedTitle name={trip.name} index={index} />
         </div>
+        <PostmarkStamp accent={stampAccent} index={index} topText={`★ ${formatDateShort(trip.days[0] ? trip.days[0].date : "")} ★`} />
       </div>
       <div className="pm-mono" style={{ fontSize: 11, color: "var(--cream)", opacity: 0.85, marginTop: 8, paddingLeft: 4 }}>
         {trip.type === "single" && trip.location ? `based in ${trip.location} · ` : ""}{tripDateRange(trip)} · {trip.days.length}d
@@ -1316,8 +1357,8 @@ function GoogleMapTab({ trip, updateTrip }) {
         title: pin.name,
         icon: {
           url: thumbtackIconUrl(meta.ramp),
-          scaledSize: new window.google.maps.Size(28, 38),
-          anchor: new window.google.maps.Point(21, 34),
+          scaledSize: new window.google.maps.Size(24, 39),
+          anchor: new window.google.maps.Point(12, 35),
         },
       });
       marker.addListener("click", () => { setSelectedPinId(pin.id); setEditingPin(null); setPendingLatLng(null); });
