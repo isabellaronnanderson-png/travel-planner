@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
-  MapPin, Plus, X, ChevronDown, ArrowLeft, Sunrise, Sun, Moon,
+  MapPin, Plus, X, ChevronDown, ArrowLeft,
   Map as MapIcon, BookOpen, Tag, KeyRound, BedDouble, Utensils,
   Link2, Compass, Trash2, PenLine, Globe, Camera,
 } from "lucide-react";
@@ -31,7 +31,9 @@ function formatDateShort(dateStr) {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-function resizeImageFile(file, maxWidth = 640, quality = 0.82) {
+// Resizes the upload, then nudges it toward an illustrated poster look
+// (boosted color + posterized bands) rather than a straight photo.
+function resizeImageFile(file, maxWidth = 640, quality = 0.85) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -42,7 +44,20 @@ function resizeImageFile(file, maxWidth = 640, quality = 0.82) {
         canvas.width = Math.round(img.width * scale);
         canvas.height = Math.round(img.height * scale);
         const ctx = canvas.getContext("2d");
+        try { ctx.filter = "saturate(1.6) contrast(1.18) brightness(1.04)"; } catch (e) { /* ignore */ }
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        try {
+          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const d = imgData.data;
+          const levels = 7;
+          const step = 255 / (levels - 1);
+          for (let i = 0; i < d.length; i += 4) {
+            d[i] = Math.round(Math.round(d[i] / step) * step);
+            d[i + 1] = Math.round(Math.round(d[i + 1] / step) * step);
+            d[i + 2] = Math.round(Math.round(d[i + 2] / step) * step);
+          }
+          ctx.putImageData(imgData, 0, 0);
+        } catch (e) { /* skip posterize if unavailable */ }
         resolve(canvas.toDataURL("image/jpeg", quality));
       };
       img.onerror = reject;
@@ -53,16 +68,17 @@ function resizeImageFile(file, maxWidth = 640, quality = 0.82) {
   });
 }
 
-function makeDay(date, city, blurb, morning, noon, eve, extras) {
+function act(where, text) {
+  return { id: uid(), where: where || "", text: text || "" };
+}
+
+function makeDay(date, city, blurb, activities, extras) {
   return {
     id: uid(),
     date,
     city,
     blurb,
-    morning: morning || "",
-    noon: noon || "",
-    eve: eve || "",
-    legs: (extras && extras.legs) || [],
+    activities: activities && activities.length ? activities : [act("", "")],
     stash: {
       hotels: (extras && extras.hotels) || [],
       spots: (extras && extras.spots) || [],
@@ -71,83 +87,109 @@ function makeDay(date, city, blurb, morning, noon, eve, extras) {
   };
 }
 
+// Converts days saved under the old morning/noon/eve/legs shape into the
+// unified activities list, so trips already in someone's browser aren't lost.
+function migrateDay(day) {
+  if (day.activities) return day;
+  const activities = [];
+  if (day.morning) activities.push(act("Morning", day.morning));
+  if (day.noon) activities.push(act("Noon", day.noon));
+  if (day.eve) activities.push(act("Evening", day.eve));
+  (day.legs || []).forEach((l) => activities.push(act(l.label, l.text)));
+  if (activities.length === 0) activities.push(act("", ""));
+  const { morning, noon, eve, legs, ...rest } = day;
+  return { ...rest, activities };
+}
+function migrateTrip(trip) {
+  return { ...trip, days: (trip.days || []).map(migrateDay) };
+}
+
+function rebuildDays(oldDays, newStart, newCount, type, location) {
+  const days = [];
+  for (let i = 0; i < newCount; i++) {
+    if (oldDays[i]) days.push({ ...oldDays[i], date: addDays(newStart, i) });
+    else days.push(makeDay(addDays(newStart, i), type === "single" ? location : "", ""));
+  }
+  return days;
+}
+
 function buildSeedTrip() {
   const start = "2027-06-06";
   const days = [
     makeDay(start, "Vancouver, BC", "Start line — pick up the car and get a feel for the city before the road takes over.",
-      "Pick up the rental downtown, coffee at Trees Organic.",
-      "Wander Granville Island market, browse the maker stalls.",
-      "Sunset at Kitsilano Beach, dinner in Gastown.",
+      [act("Trees Organic Coffee", "Pick up the rental downtown, coffee here first."),
+       act("Granville Island Market", "Wander the market, browse the maker stalls."),
+       act("Kitsilano Beach / Gastown", "Sunset at the beach, dinner in Gastown.")],
       { hotels: [{ id: uid(), name: "Sylvia Hotel", link: "", note: "Heritage building, ivy-covered, harbor-view rooms book fast." }],
         spots: [{ id: uid(), name: "Capilano Suspension Bridge", link: "", note: "Apparently touristy but the canopy walk looks incredible." }],
         codes: [] }),
     makeDay(addDays(start, 1), "Vancouver → Seattle", "Border day. Short drive, long lunch stop.",
-      "Border crossing at Peace Arch — aim to leave by 9am to beat lines.",
-      "Lunch stop in Bellingham, walk around Fairhaven.",
-      "Check into Seattle, Pike Place at golden hour.",
+      [act("Peace Arch border crossing", "Aim to leave by 9am to beat lines."),
+       act("Fairhaven, Bellingham", "Lunch stop, walk around the historic district."),
+       act("Pike Place Market", "Check into Seattle, catch it at golden hour.")],
       { hotels: [{ id: uid(), name: "Ace Hotel Seattle", link: "", note: "Industrial-chic, walkable to the market." }],
         codes: [{ id: uid(), label: "Rental car confirmation", value: "RC-88213" }] }),
     makeDay(addDays(start, 2), "Seattle", "A full day in the city — market, glass, and a rooftop to close it out.",
-      "Pike Place Market, first thing when the flower stalls open.",
-      "Chihuly Garden and Glass.",
-      "Dinner in Capitol Hill, rooftop bar after.",
+      [act("Pike Place Market", "First thing when the flower stalls open."),
+       act("Chihuly Garden and Glass", "Mid-morning, before it gets busy."),
+       act("Capitol Hill", "Dinner, then a rooftop bar after.")],
       { spots: [{ id: uid(), name: "Kerry Park", link: "", note: "Skyline + Space Needle view, apparently best at dusk." }] }),
     makeDay(addDays(start, 3), "Seattle → Portland", "South on the I-5, mountain permitting.",
-      "Drive down I-5, stop at the Mount Rainier viewpoint if clear.",
-      "Lunch in Olympia.",
-      "Arrive Portland, Powell's Books before it closes.",
+      [act("Mount Rainier viewpoint", "Stop along I-5 if the weather's clear."),
+       act("Olympia", "Lunch stop."),
+       act("Powell's Books", "Arrive Portland, go before it closes.")],
       { codes: [{ id: uid(), label: "Portland hotel confirmation", value: "POR-4471" }] }),
     makeDay(addDays(start, 4), "Portland", "Doughnuts, forest, and food carts.",
-      "Voodoo Doughnut, then a walk through Forest Park.",
-      "Food cart pod lunch on SW 5th.",
-      "Dinner in Alberta Arts District.",
+      [act("Voodoo Doughnut", "Then a walk through Forest Park."),
+       act("SW 5th food cart pod", "Lunch."),
+       act("Alberta Arts District", "Dinner here.")],
       { hotels: [{ id: uid(), name: "Jupiter Hotel", link: "", note: "Funky courtyard motel, good bar on site." }] }),
     makeDay(addDays(start, 5), "Portland → Bend", "Over the Cascades to high desert brewery country.",
-      "Drive over the Cascades via Mt. Hood.",
-      "Lunch in Sisters, browse the outdoor shops.",
-      "Bend brewery crawl, Deschutes River walk.",
+      [act("Mt. Hood", "Drive over the Cascades this way."),
+       act("Sisters", "Lunch, browse the outdoor shops."),
+       act("Bend", "Brewery crawl, Deschutes River walk.")],
       { spots: [{ id: uid(), name: "Smith Rock State Park", link: "", note: "Heard the Misery Ridge trail is worth the climb." }] }),
     makeDay(addDays(start, 6), "Bend → Crater Lake → Redwoods", "Long driving day — rim views to old growth.",
-      "Sunrise at Crater Lake rim, Rim Village overlook.",
-      "Drive south through the Umpqua forest.",
-      "Arrive Crescent City, first redwoods at dusk.",
-      { legs: [{ id: uid(), label: "Fuel + snacks, ~1pm", text: "Top off in Klamath Falls before the last stretch — not much after this for a while." }] }),
+      [act("Crater Lake, Rim Village", "Sunrise overlook."),
+       act("Klamath Falls", "Fuel + snacks, ~1pm — not much after this for a while."),
+       act("Crescent City", "Arrive at dusk, first redwoods.")],
+      {}),
     makeDay(addDays(start, 7), "Redwoods → Eureka", "Giants, then a Victorian old town.",
-      "Walk among the old growth at Fern Canyon.",
-      "Avenue of the Giants scenic drive.",
-      "Dinner in Eureka's Old Town.",
+      [act("Fern Canyon", "Walk among the old growth."),
+       act("Avenue of the Giants", "Scenic drive."),
+       act("Eureka Old Town", "Dinner here.")],
       { hotels: [{ id: uid(), name: "Carter House Inn", link: "", note: "Victorian B&B, good reviews for the restaurant." }] }),
     makeDay(addDays(start, 8), "Eureka → Mendocino → Sonoma", "Coast village, wine detour, plaza dinner.",
-      "Coastal stop in Mendocino village.",
-      "Wine tasting detour through Anderson Valley.",
-      "Overnight in Sonoma, dinner on the plaza.",
+      [act("Mendocino village", "Coastal stop."),
+       act("Anderson Valley", "Wine tasting detour."),
+       act("Sonoma Plaza", "Overnight here, dinner on the plaza.")],
       { spots: [{ id: uid(), name: "Point Arena Lighthouse", link: "", note: "Climb to the top for coast views, apparently few crowds." }] }),
     makeDay(addDays(start, 9), "Sonoma → San Francisco", "Into the city over the bridge.",
-      "Golden Gate Bridge walk from the north side.",
-      "Lunch in the Mission, taqueria crawl.",
-      "Sunset at Twin Peaks.",
+      [act("Golden Gate Bridge", "Walk it from the north side."),
+       act("The Mission", "Lunch, taqueria crawl."),
+       act("Twin Peaks", "Sunset up here.")],
       { codes: [{ id: uid(), label: "SF hotel confirmation", value: "SF-99042" }] }),
     makeDay(addDays(start, 10), "San Francisco", "A full city day — market, island, North Beach.",
-      "Ferry Building farmers market.",
-      "Alcatraz tour (book ahead).",
-      "Dinner in North Beach.",
+      [act("Ferry Building", "Farmers market."),
+       act("Alcatraz", "Tour, book ahead."),
+       act("North Beach", "Dinner here.")],
       { hotels: [{ id: uid(), name: "Hotel Zeppelin", link: "", note: "Playful lobby, Union Square location." }] }),
     makeDay(addDays(start, 11), "San Francisco → Big Sur", "Highway 1 proper starts here.",
-      "Drive Highway 1 through Half Moon Bay.",
-      "Lunch in Monterey, Cannery Row walk.",
-      "Sunset at McWay Falls.",
+      [act("Half Moon Bay", "Drive Highway 1 through here."),
+       act("Cannery Row, Monterey", "Lunch, walk."),
+       act("McWay Falls", "Sunset.")],
       { spots: [{ id: uid(), name: "Nepenthe", link: "", note: "Cliffside views, heard sunset seating needs a wait." }] }),
     makeDay(addDays(start, 12), "Big Sur → Santa Barbara", "Castle photo stop, coastal town landing.",
-      "Continue south on Highway 1, Hearst Castle photo stop.",
-      "Lunch in Cambria.",
-      "Arrive Santa Barbara, sunset at Butterfly Beach.",
+      [act("Hearst Castle", "Photo stop continuing south on Highway 1."),
+       act("Cambria", "Lunch."),
+       act("Butterfly Beach", "Arrive Santa Barbara, sunset here.")],
       { hotels: [{ id: uid(), name: "El Encanto", link: "", note: "Hillside views — a splurge, but feels like the occasion for it." }] }),
     makeDay(addDays(start, 13), "Santa Barbara → LA → San Diego", "Finish line — beaches the whole way down.",
-      "Drive through LA, quick stop in Venice Beach.",
-      "Lunch in Laguna Beach.",
-      "Arrive San Diego, sunset at Sunset Cliffs, trip-end dinner.",
-      { codes: [{ id: uid(), label: "Return car drop-off", value: "RC-DROP-2291" }],
-        legs: [{ id: uid(), label: "Detour, mid-afternoon", text: "If there's time: In-N-Out in LA before pushing on." }] }),
+      [act("Venice Beach", "Quick stop driving through LA."),
+       act("In-N-Out, LA", "If there's time, mid-afternoon detour."),
+       act("Laguna Beach", "Lunch."),
+       act("Sunset Cliffs", "Arrive San Diego, sunset here, trip-end dinner.")],
+      { codes: [{ id: uid(), label: "Return car drop-off", value: "RC-DROP-2291" }] }),
   ];
 
   const pins = [
@@ -175,24 +217,19 @@ function buildSeedTrip() {
 }
 
 const CATEGORY_META = {
-  restaurant: { label: "Restaurants", icon: Utensils, ramp: "#A8481F" },
-  spot: { label: "Spots", icon: MapPin, ramp: "#2F5240" },
-  hotel: { label: "Hotels", icon: BedDouble, ramp: "#2F4A68" },
+  restaurant: { label: "Restaurants", icon: Utensils, ramp: "#C1591F" },
+  spot: { label: "Spots", icon: MapPin, ramp: "#3C7A54" },
+  hotel: { label: "Hotels", icon: BedDouble, ramp: "#2C4F73" },
 };
 
 const CARD_GRADIENTS = [
-  "linear-gradient(135deg,#345C46,#1F3B2C)",
-  "linear-gradient(135deg,#C1591F,#8B3E15)",
-  "linear-gradient(135deg,#3A5A7C,#1B2E44)",
-  "linear-gradient(135deg,#7A5A20,#4A3510)",
+  "linear-gradient(135deg,#3C7A54,#1F3B2C)",
+  "linear-gradient(135deg,#D9622A,#8B3E15)",
+  "linear-gradient(135deg,#3E6690,#1B2E44)",
+  "linear-gradient(135deg,#B98A2E,#6B4E17)",
 ];
 
-const PIN_TONES = [
-  { main: "#A8481F", dark: "#762F12" },
-  { main: "#2F5240", dark: "#1B3324" },
-  { main: "#2F4A68", dark: "#1B2E44" },
-  { main: "#8A6620", dark: "#5A4212" },
-];
+const PIN_TONES = ["#D9622A", "#3C7A54", "#3E6690", "#B98A2E"];
 
 function tripDateRange(trip) {
   if (!trip.days.length) return "";
@@ -208,7 +245,7 @@ export default function App() {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      setTrips(raw ? JSON.parse(raw) : [buildSeedTrip()]);
+      setTrips(raw ? JSON.parse(raw).map(migrateTrip) : [buildSeedTrip()]);
     } catch (e) {
       setTrips([buildSeedTrip()]);
     } finally {
@@ -248,31 +285,26 @@ export default function App() {
     setTrips((prev) => prev.filter((t) => t.id !== tripId));
   }
 
-  function setCoverImage(tripId, dataUrl) {
-    updateTrip(tripId, (t) => ({ ...t, coverImage: dataUrl }));
-  }
-
   const activeTrip = trips ? trips.find((t) => t.id === activeTripId) : null;
 
   return (
     <div className="pm-root">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Titan+One&family=Nunito:ital,wght@0,400;0,600;0,700;1,600&family=Caveat:wght@600;700&family=Space+Mono:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Rye&family=Nunito:ital,wght@0,400;0,600;0,700;1,600&family=Caveat:wght@600;700&family=Space+Mono:wght@400;700&display=swap');
 
         .pm-root {
-          --forest: #1F3B2C;
-          --forest-light: #35624A;
-          --rust: #A8481F;
-          --rust-light: #C1591F;
-          --navy: #1B2E44;
-          --navy-light: #2F4A68;
+          --forest: #2E5940;
+          --forest-light: #47825E;
+          --rust: #C1591F;
+          --rust-light: #D9622A;
+          --navy: #2C4F73;
+          --navy-light: #3E6690;
           --gold: #B98A2E;
           --cream: #F3ECDD;
           --ink: #2A2019;
           --ink-soft: #5C4E3F;
-          --wood-dark: #241811;
-          --wood-mid: #3A2717;
-          --wood-light: #4E3421;
+          --wood: #5C4630;
+          --wood-dark: #3C2E1E;
           --card-shadow: rgba(0,0,0,0.4);
           font-family: 'Nunito', sans-serif;
           color: var(--cream);
@@ -282,15 +314,12 @@ export default function App() {
           padding: 0 20px 60px;
           border-radius: 14px;
           background:
-            radial-gradient(ellipse 340px 70px at 18% 22%, rgba(0,0,0,0.28), transparent 70%),
-            radial-gradient(ellipse 420px 60px at 82% 65%, rgba(0,0,0,0.24), transparent 70%),
-            radial-gradient(ellipse 300px 50px at 55% 88%, rgba(0,0,0,0.2), transparent 70%),
-            repeating-linear-gradient(0deg, rgba(0,0,0,0.10) 0px, rgba(0,0,0,0.10) 1px, transparent 1px, transparent 5px),
-            repeating-linear-gradient(0deg, rgba(255,255,255,0.025) 0px, transparent 2px, transparent 8px),
-            linear-gradient(100deg, var(--wood-mid), var(--wood-dark) 60%, var(--wood-mid));
+            repeating-linear-gradient(3deg, rgba(0,0,0,0.06) 0px, rgba(0,0,0,0.06) 2px, transparent 2px, transparent 7px),
+            repeating-linear-gradient(3deg, rgba(255,255,255,0.035) 0px, transparent 3px, transparent 10px),
+            linear-gradient(100deg, var(--wood), #4E3A26 50%, var(--wood));
         }
         .pm-root * { box-sizing: border-box; }
-        .pm-display { font-family: 'Titan One', cursive; }
+        .pm-display { font-family: 'Rye', serif; }
         .pm-hand { font-family: 'Caveat', cursive; }
         .pm-mono { font-family: 'Space Mono', monospace; }
         .pm-btn {
@@ -333,12 +362,8 @@ export default function App() {
           backface-visibility: hidden;
         }
         .pm-card.pm-flipping { transform: rotateY(150deg); }
-        .pm-seg {
-          display: inline-flex; border: 1.5px solid rgba(46,43,38,0.25); border-radius: 20px; overflow: hidden;
-        }
-        .pm-seg button {
-          font-family: 'Nunito', sans-serif; font-weight: 700; font-size: 12px; border: none; padding: 8px 14px; cursor: pointer; background: #FAF8F4; color: var(--ink);
-        }
+        .pm-seg { display: inline-flex; border: 1.5px solid rgba(46,43,38,0.25); border-radius: 20px; overflow: hidden; }
+        .pm-seg button { font-family: 'Nunito', sans-serif; font-weight: 700; font-size: 12px; border: none; padding: 8px 14px; cursor: pointer; background: #FAF8F4; color: var(--ink); }
         .pm-seg button.active { background: var(--forest); color: #fff; }
       `}</style>
 
@@ -349,7 +374,7 @@ export default function App() {
       ) : activeTrip ? (
         <TripView trip={activeTrip} onBack={() => setActiveTripId(null)} updateTrip={(fn) => updateTrip(activeTrip.id, fn)} />
       ) : (
-        <HomeView trips={trips} onOpen={setActiveTripId} onNew={() => setShowNewForm(true)} onDelete={deleteTrip} onSetCover={setCoverImage} />
+        <HomeView trips={trips} onOpen={setActiveTripId} onNew={() => setShowNewForm(true)} onDelete={deleteTrip} />
       )}
 
       {showNewForm && <NewTripModal onCancel={() => setShowNewForm(false)} onCreate={createTrip} />}
@@ -361,72 +386,71 @@ function PineTree({ size = 46 }) {
   return (
     <svg width={size} height={size * 1.3} viewBox="0 0 46 60">
       <rect x="20" y="46" width="6" height="10" fill="#4A3210" />
-      <polygon points="23,4 6,26 40,26" fill="#2F5240" stroke="#1a2e21" strokeWidth="1.5" />
-      <polygon points="23,16 4,36 42,36" fill="#284A38" stroke="#1a2e21" strokeWidth="1.5" />
-      <polygon points="23,28 2,50 44,50" fill="#22402F" stroke="#1a2e21" strokeWidth="1.5" />
+      <polygon points="23,4 6,26 40,26" fill="#3C7A54" stroke="#1a2e21" strokeWidth="1.5" />
+      <polygon points="23,16 4,36 42,36" fill="#336B49" stroke="#1a2e21" strokeWidth="1.5" />
+      <polygon points="23,28 2,50 44,50" fill="#2A5B3E" stroke="#1a2e21" strokeWidth="1.5" />
     </svg>
   );
 }
 
 function Header() {
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 14, marginTop: 26, marginBottom: 8 }}>
-      <PineTree size={44} />
-      <div style={{ textAlign: "center" }}>
-        <div className="pm-display" style={{ fontSize: 46, color: "var(--cream)", letterSpacing: "0.02em", textShadow: "3px 3px 0 rgba(0,0,0,0.35)" }}>Postmark</div>
-        <div className="pm-hand" style={{ fontSize: 19, color: "var(--cream)", opacity: 0.85, marginTop: -2 }}>a scrapbook for trips still taking shape</div>
+    <div style={{ background: "var(--wood-dark)", borderRadius: 16, padding: "22px 20px", marginTop: 20, marginBottom: 30, boxShadow: "0 6px 16px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)", border: "1px solid rgba(0,0,0,0.3)" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 14 }}>
+        <PineTree size={42} />
+        <div style={{ textAlign: "center" }}>
+          <div className="pm-display" style={{ fontSize: 46, color: "var(--cream)", letterSpacing: "0.02em" }}>Postmark</div>
+          <div className="pm-hand" style={{ fontSize: 19, color: "var(--cream)", opacity: 0.85, marginTop: -2 }}>a scrapbook for trips still taking shape</div>
+        </div>
+        <PineTree size={42} />
       </div>
-      <PineTree size={44} />
     </div>
   );
 }
 
-function Pushpin({ toneIndex, style }) {
-  const tone = PIN_TONES[toneIndex % PIN_TONES.length];
+function Pushpin({ color, style }) {
   return (
-    <svg width="40" height="50" viewBox="0 0 40 50" style={{ filter: "drop-shadow(0 5px 5px rgba(0,0,0,0.45))", ...style }}>
-      <ellipse cx="19" cy="45" rx="5" ry="1.8" fill="rgba(0,0,0,0.35)" />
-      <path d="M17 24 L29 36" stroke="#1c1c1c" strokeWidth="7" strokeLinecap="round" />
-      <path d="M17 24 L29 36" stroke="#CBCBCB" strokeWidth="4" strokeLinecap="round" />
-      <ellipse cx="16" cy="14" rx="14" ry="10" fill={tone.main} stroke="#1c1c1c" strokeWidth="2.5" />
-      <path d="M3 14 A14 10 0 0 0 29 14 L29 19 A14 8 0 0 1 3 19 Z" fill={tone.dark} stroke="#1c1c1c" strokeWidth="2.5" strokeLinejoin="round" />
-      <ellipse cx="10" cy="9" rx="3.6" ry="2.4" fill="#fff" opacity="0.55" transform="rotate(-20 10 9)" />
+    <svg width="42" height="50" viewBox="0 0 42 50" style={{ filter: "drop-shadow(0 5px 5px rgba(0,0,0,0.45))", ...style }}>
+      <ellipse cx="21" cy="45" rx="5" ry="1.8" fill="rgba(0,0,0,0.35)" />
+      <path d="M20 28 L33 41" stroke="#1a1a1a" strokeWidth="8" strokeLinecap="round" />
+      <path d="M20 28 L33 41" stroke="#D8D8D8" strokeWidth="4.5" strokeLinecap="round" />
+      <ellipse cx="19" cy="16" rx="17" ry="13" fill={color} stroke="#1a1a1a" strokeWidth="3" />
+      <ellipse cx="12" cy="9" rx="5" ry="3.2" fill="#fff" opacity="0.5" transform="rotate(-20 12 9)" />
     </svg>
   );
 }
 
-function StampMark({ accent, rot }) {
+function PostmarkStamp({ accent, index, topText }) {
+  const pathId = `pm-stamp-path-${index}`;
   return (
-    <svg width="50" height="60" viewBox="0 0 50 60" style={{ position: "absolute", top: 10, right: 10, transform: `rotate(${rot}deg)`, filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.35))" }}>
-      <rect x="2" y="2" width="46" height="56" fill="#FCFBF7" stroke={accent} strokeWidth="2.4" strokeDasharray="0.1 6" strokeLinecap="round" />
-      <path d="M8 42 L18 26 L26 36 L34 20 L42 42 Z" fill="none" stroke={accent} strokeWidth="2" />
-      <circle cx="36" cy="14" r="4.5" fill={accent} />
+    <svg width="86" height="86" viewBox="0 0 100 100" style={{ position: "absolute", top: 8, right: 8, transform: `rotate(${index % 2 === 0 ? 6 : -5}deg)`, opacity: 0.92 }}>
+      <defs>
+        <path id={pathId} d="M 50,50 m -38,0 a 38,38 0 1,1 76,0 a 38,38 0 1,1 -76,0" />
+      </defs>
+      <circle cx="50" cy="50" r="38" fill="none" stroke={accent} strokeWidth="2.2" />
+      <circle cx="50" cy="50" r="31" fill="none" stroke={accent} strokeWidth="1.2" />
+      <text fontSize="8" fill={accent} letterSpacing="2">
+        <textPath href={`#${pathId}`} startOffset="25%" textAnchor="middle">{topText}</textPath>
+      </text>
+      <line x1="20" y1="50" x2="80" y2="50" stroke={accent} strokeWidth="1.4" />
+      <text x="50" y="44" textAnchor="middle" fontSize="15" fontWeight="700" fill={accent} className="pm-display">POST</text>
+      <text x="50" y="66" textAnchor="middle" fontSize="7" fill={accent} letterSpacing="1.5">MARK</text>
     </svg>
   );
 }
 
-function TripCard({ trip, index, onOpen, onDelete, onSetCover, flipping, onStartFlip }) {
-  const fileInputRef = useRef(null);
+function TripCard({ trip, index, onOpen, onDelete, flipping, onStartFlip }) {
   const gradient = CARD_GRADIENTS[index % CARD_GRADIENTS.length];
+  const pinColor = PIN_TONES[index % PIN_TONES.length];
   const pinRot = index % 2 === 0 ? -14 : 11;
   const cardRot = index % 3 === 0 ? -1.4 : (index % 3 === 1 ? 1 : -0.5);
-  const stampAccent = [ "#A8481F", "#2F5240", "#2F4A68", "#8A6620" ][index % 4];
-
-  async function handleFile(e) {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    try {
-      const dataUrl = await resizeImageFile(file);
-      onSetCover(trip.id, dataUrl);
-    } catch (err) { /* ignore */ }
-    e.target.value = "";
-  }
+  const stampAccent = PIN_TONES[(index + 1) % PIN_TONES.length];
 
   return (
     <div className="pm-card-wrap" style={{ position: "relative" }}>
       <Pushpin
-        toneIndex={index}
-        style={{ position: "absolute", top: -20, left: index % 2 === 0 ? 24 : "auto", right: index % 2 === 0 ? "auto" : 24, transform: `rotate(${pinRot}deg)`, zIndex: 3 }}
+        color={pinColor}
+        style={{ position: "absolute", top: -20, left: index % 2 === 0 ? 26 : "auto", right: index % 2 === 0 ? "auto" : 26, transform: `rotate(${pinRot}deg)`, zIndex: 3 }}
       />
       <div
         onClick={() => onStartFlip(trip.id)}
@@ -438,24 +462,24 @@ function TripCard({ trip, index, onOpen, onDelete, onSetCover, flipping, onStart
           borderRadius: "4px 10px 5px 9px",
           overflow: "hidden",
           cursor: "pointer",
-          padding: 10,
+          padding: 16,
           boxShadow: "0 10px 20px var(--card-shadow)",
           transform: `rotate(${cardRot}deg)`,
         }}
       >
         <button
           onClick={(e) => { e.stopPropagation(); onDelete(trip.id); }}
-          style={{ position: "absolute", top: 16, left: 16, background: "rgba(0,0,0,0.5)", borderRadius: "50%", border: "none", width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 2 }}
+          style={{ position: "absolute", top: 22, left: 22, background: "rgba(0,0,0,0.5)", borderRadius: "50%", border: "none", width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 2 }}
           aria-label="Delete trip"
         >
           <X size={13} color="#fff" />
         </button>
 
-        <div style={{ position: "relative", height: 150, borderRadius: "2px 7px 3px 6px", overflow: "hidden", background: trip.coverImage ? `center / cover no-repeat url(${trip.coverImage})` : gradient, border: "2px solid rgba(0,0,0,0.65)" }}>
-          <StampMark accent={stampAccent} rot={index % 2 === 0 ? 7 : -6} />
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none", padding: "0 14px" }}>
+        <div style={{ position: "relative", height: 210, borderRadius: "2px 7px 3px 6px", overflow: "hidden", background: trip.coverImage ? `center / cover no-repeat url(${trip.coverImage})` : gradient, border: "2px solid rgba(0,0,0,0.65)" }}>
+          <PostmarkStamp accent={stampAccent} index={index} topText={`★ ${formatDateShort(trip.days[0] ? trip.days[0].date : "")} ★`} />
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none", padding: "0 16px" }}>
             <div className="pm-display" style={{
-              fontSize: trip.name.length > 16 ? 22 : 28,
+              fontSize: trip.name.length > 16 ? 26 : 32,
               color: "#fff",
               transform: "rotate(-11deg)",
               textAlign: "center",
@@ -463,17 +487,9 @@ function TripCard({ trip, index, onOpen, onDelete, onSetCover, flipping, onStart
               textShadow: "2px 2px 0 rgba(0,0,0,0.7), -2px -2px 0 rgba(0,0,0,0.7), 2px -2px 0 rgba(0,0,0,0.7), -2px 2px 0 rgba(0,0,0,0.7), 0 5px 10px rgba(0,0,0,0.4)",
             }}>{trip.name}</div>
           </div>
-          <button
-            onClick={(e) => { e.stopPropagation(); fileInputRef.current && fileInputRef.current.click(); }}
-            style={{ position: "absolute", bottom: 8, right: 8, width: 30, height: 30, borderRadius: "50%", background: "rgba(0,0,0,0.55)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 2 }}
-            aria-label="Upload cover photo"
-          >
-            <Camera size={14} color="#fff" />
-          </button>
-          <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }} onClick={(e) => e.stopPropagation()} onChange={handleFile} />
         </div>
 
-        <div style={{ padding: "10px 8px 4px" }}>
+        <div style={{ marginTop: 10 }}>
           <div className="pm-mono" style={{ fontSize: 11, color: "var(--ink-soft)" }}>
             {trip.type === "single" && trip.location ? `based in ${trip.location} · ` : ""}{tripDateRange(trip)} · {trip.days.length}d
           </div>
@@ -483,7 +499,7 @@ function TripCard({ trip, index, onOpen, onDelete, onSetCover, flipping, onStart
   );
 }
 
-function HomeView({ trips, onOpen, onNew, onDelete, onSetCover }) {
+function HomeView({ trips, onOpen, onNew, onDelete }) {
   const [flippingId, setFlippingId] = useState(null);
 
   function handleOpen(tripId) {
@@ -496,18 +512,9 @@ function HomeView({ trips, onOpen, onNew, onDelete, onSetCover }) {
     <div>
       <Header />
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 40, paddingTop: 18 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 44, paddingTop: 18 }}>
         {trips.map((trip, i) => (
-          <TripCard
-            key={trip.id}
-            trip={trip}
-            index={i}
-            onOpen={onOpen}
-            onDelete={onDelete}
-            onSetCover={onSetCover}
-            flipping={flippingId === trip.id}
-            onStartFlip={handleOpen}
-          />
+          <TripCard key={trip.id} trip={trip} index={i} onOpen={onOpen} onDelete={onDelete} flipping={flippingId === trip.id} onStartFlip={handleOpen} />
         ))}
 
         <div
@@ -520,7 +527,7 @@ function HomeView({ trips, onOpen, onNew, onDelete, onSetCover }) {
             alignItems: "center",
             justifyContent: "center",
             gap: 8,
-            minHeight: 200,
+            minHeight: 230,
             cursor: "pointer",
             color: "var(--cream)",
           }}
@@ -530,6 +537,26 @@ function HomeView({ trips, onOpen, onNew, onDelete, onSetCover }) {
         </div>
       </div>
     </div>
+  );
+}
+
+function TripTypeFields({ type, setType, location, setLocation, namePlaceholder }) {
+  return (
+    <>
+      <div style={{ marginBottom: 14 }}>
+        <span className="pm-label">Trip style</span>
+        <div className="pm-seg">
+          <button className={type === "multi" ? "active" : ""} onClick={() => setType("multi")}>Multi-city</button>
+          <button className={type === "single" ? "active" : ""} onClick={() => setType("single")}>One place</button>
+        </div>
+      </div>
+      {type === "single" && (
+        <div style={{ marginBottom: 12 }}>
+          <span className="pm-label">Location</span>
+          <input className="pm-input" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Amsterdam" />
+        </div>
+      )}
+    </>
   );
 }
 
@@ -546,27 +573,14 @@ function NewTripModal({ onCancel, onCreate }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20 }}>
       <div style={{ background: "#FFFDF9", borderRadius: 14, padding: 24, width: "100%", maxWidth: 380, boxShadow: "0 10px 30px rgba(0,0,0,0.4)" }}>
-        <div className="pm-display" style={{ fontSize: 24, marginBottom: 16, color: "var(--ink)" }}>New trip</div>
+        <div className="pm-display" style={{ fontSize: 26, marginBottom: 16, color: "var(--ink)" }}>New trip</div>
 
-        <div style={{ marginBottom: 14 }}>
-          <span className="pm-label">Trip style</span>
-          <div className="pm-seg">
-            <button className={type === "multi" ? "active" : ""} onClick={() => setType("multi")}>Multi-city</button>
-            <button className={type === "single" ? "active" : ""} onClick={() => setType("single")}>One place</button>
-          </div>
-        </div>
+        <TripTypeFields type={type} setType={setType} location={location} setLocation={setLocation} />
 
         <div style={{ marginBottom: 12 }}>
           <span className="pm-label">Name</span>
           <input className="pm-input" value={name} onChange={(e) => setName(e.target.value)} placeholder={type === "single" ? "5 days in Amsterdam" : "Coast to coast"} />
         </div>
-
-        {type === "single" && (
-          <div style={{ marginBottom: 12 }}>
-            <span className="pm-label">Location</span>
-            <input className="pm-input" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Amsterdam" />
-          </div>
-        )}
 
         <div style={{ display: "flex", gap: 10, marginBottom: 6 }}>
           <div style={{ flex: 1 }}>
@@ -590,9 +604,82 @@ function NewTripModal({ onCancel, onCreate }) {
   );
 }
 
+function EditTripModal({ trip, onCancel, onSave, onSetCover }) {
+  const [name, setName] = useState(trip.name);
+  const [type, setType] = useState(trip.type);
+  const [location, setLocation] = useState(trip.location || "");
+  const [startDate, setStartDate] = useState(trip.days[0] ? trip.days[0].date : new Date().toISOString().slice(0, 10));
+  const [endDate, setEndDate] = useState(trip.days[trip.days.length - 1] ? trip.days[trip.days.length - 1].date : startDate);
+  const fileInputRef = useRef(null);
+  const invalid = endDate < startDate;
+  const n = invalid ? 0 : daysBetween(startDate, endDate);
+  const diff = n - trip.days.length;
+
+  async function handleFile(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    try {
+      const dataUrl = await resizeImageFile(file);
+      onSetCover(dataUrl);
+    } catch (err) { /* ignore */ }
+    e.target.value = "";
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20 }}>
+      <div style={{ background: "#FFFDF9", borderRadius: 14, padding: 24, width: "100%", maxWidth: 380, boxShadow: "0 10px 30px rgba(0,0,0,0.4)", maxHeight: "90vh", overflowY: "auto" }}>
+        <div className="pm-display" style={{ fontSize: 26, marginBottom: 16, color: "var(--ink)" }}>Edit trip</div>
+
+        <TripTypeFields type={type} setType={setType} location={location} setLocation={setLocation} />
+
+        <div style={{ marginBottom: 12 }}>
+          <span className="pm-label">Name</span>
+          <input className="pm-input" value={name} onChange={(e) => setName(e.target.value)} />
+        </div>
+
+        <div style={{ display: "flex", gap: 10, marginBottom: 6 }}>
+          <div style={{ flex: 1 }}>
+            <span className="pm-label">Start date</span>
+            <input className="pm-input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <span className="pm-label">End date</span>
+            <input className="pm-input" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          </div>
+        </div>
+        <div className="pm-mono" style={{ fontSize: 11, color: invalid ? "var(--rust)" : "var(--ink-soft)", marginBottom: 16 }}>
+          {invalid ? "end date needs to be after the start date" : `${n} day${n === 1 ? "" : "s"}${diff < 0 ? ` — drops the last ${-diff} day(s), their notes will be lost` : diff > 0 ? ` — adds ${diff} blank day(s)` : ""}`}
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <span className="pm-label">Cover photo</span>
+          {trip.coverImage ? (
+            <div style={{ position: "relative", width: "100%", height: 110, borderRadius: 8, overflow: "hidden", border: "1px solid rgba(46,43,38,0.2)" }}>
+              <img src={trip.coverImage} alt="cover" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <button onClick={() => onSetCover(null)} style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.6)", border: "none", borderRadius: "50%", width: 22, height: 22, color: "#fff", cursor: "pointer" }} aria-label="Remove photo"><X size={12} /></button>
+            </div>
+          ) : (
+            <div style={{ fontSize: 12, color: "var(--ink-soft)", fontStyle: "italic" }}>No photo yet — the card uses a color block instead.</div>
+          )}
+          <button className="pm-btn pm-btn-ghost" style={{ marginTop: 8, fontSize: 11, color: "var(--ink)", borderColor: "rgba(46,43,38,0.3)" }} onClick={() => fileInputRef.current && fileInputRef.current.click()}>
+            <Camera size={12} /> {trip.coverImage ? "replace photo" : "upload photo"}
+          </button>
+          <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFile} />
+        </div>
+
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+          <button className="pm-btn pm-btn-ghost" style={{ color: "var(--ink)", borderColor: "rgba(46,43,38,0.3)" }} onClick={onCancel}>Cancel</button>
+          <button className="pm-btn pm-btn-solid" disabled={invalid} onClick={() => !invalid && onSave({ name, type, location, startDate, endDate })}>Save changes</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TripView({ trip, onBack, updateTrip }) {
   const [tab, setTab] = useState("itinerary");
   const [expandedDayId, setExpandedDayId] = useState(null);
+  const [showEdit, setShowEdit] = useState(false);
 
   function updateDay(dayId, fn) {
     updateTrip((t) => ({ ...t, days: t.days.map((d) => (d.id === dayId ? fn(d) : d)) }));
@@ -600,13 +687,14 @@ function TripView({ trip, onBack, updateTrip }) {
 
   return (
     <div>
-      <button className="pm-btn pm-btn-ghost" onClick={onBack} style={{ marginTop: 20, marginBottom: 18 }}>
-        <ArrowLeft size={13} /> all trips
-      </button>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 20, marginBottom: 18 }}>
+        <button className="pm-btn pm-btn-ghost" onClick={onBack}><ArrowLeft size={13} /> all trips</button>
+        <button className="pm-btn pm-btn-ghost" onClick={() => setShowEdit(true)}><PenLine size={13} /> edit trip</button>
+      </div>
 
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 20 }}>
         <div>
-          <div className="pm-display" style={{ fontSize: 34, lineHeight: 1.1, color: "var(--cream)", textShadow: "2px 2px 0 rgba(0,0,0,0.35)" }}>{trip.name}</div>
+          <div className="pm-display" style={{ fontSize: 34, lineHeight: 1.1, color: "var(--cream)" }}>{trip.name}</div>
           <div className="pm-mono" style={{ fontSize: 12, color: "var(--cream)", opacity: 0.8, marginTop: 6 }}>
             {trip.type === "single" && trip.location ? `based in ${trip.location} · ` : ""}{tripDateRange(trip)} · {trip.days.length} days
           </div>
@@ -623,6 +711,24 @@ function TripView({ trip, onBack, updateTrip }) {
       )}
       {tab === "map" && <MapTab trip={trip} updateTrip={updateTrip} />}
       {tab === "gmap" && <GoogleMapTab trip={trip} updateTrip={updateTrip} />}
+
+      {showEdit && (
+        <EditTripModal
+          trip={trip}
+          onCancel={() => setShowEdit(false)}
+          onSetCover={(url) => updateTrip((t) => ({ ...t, coverImage: url }))}
+          onSave={(patch) => {
+            updateTrip((t) => ({
+              ...t,
+              name: patch.name || "Untitled trip",
+              type: patch.type,
+              location: patch.type === "single" ? patch.location : "",
+              days: rebuildDays(t.days, patch.startDate, daysBetween(patch.startDate, patch.endDate), patch.type, patch.location),
+            }));
+            setShowEdit(false);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -685,9 +791,12 @@ function ItineraryTab({ trip, expandedDayId, setExpandedDayId, updateDay }) {
 }
 
 function DayCardBody({ day, expanded, onToggle, updateDay, hideCity }) {
-  function addLeg() { updateDay((d) => ({ ...d, legs: [...(d.legs || []), { id: uid(), label: "", text: "" }] })); }
-  function updateLeg(id, patch) { updateDay((d) => ({ ...d, legs: d.legs.map((l) => (l.id === id ? { ...l, ...patch } : l)) })); }
-  function removeLeg(id) { updateDay((d) => ({ ...d, legs: d.legs.filter((l) => l.id !== id) })); }
+  function addActivity() { updateDay((d) => ({ ...d, activities: [...(d.activities || []), act("", "")] })); }
+  function updateActivity(id, patch) { updateDay((d) => ({ ...d, activities: d.activities.map((a) => (a.id === id ? { ...a, ...patch } : a)) })); }
+  function removeActivity(id) { updateDay((d) => ({ ...d, activities: d.activities.filter((a) => a.id !== id) })); }
+
+  const titleValue = hideCity ? day.blurb : day.city;
+  const titleField = hideCity ? "blurb" : "city";
 
   return (
     <div>
@@ -695,7 +804,6 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity }) {
         <div style={{ minWidth: 0 }}>
           <div className="pm-mono" style={{ fontSize: 11, color: "var(--ink-soft)" }}>{formatDate(day.date)}</div>
           <div style={{ fontSize: 17, fontWeight: 700, marginTop: 2 }}>{hideCity ? (day.blurb || "Untitled day") : (day.city || "Untitled stop")}</div>
-          {day.blurb && !expanded && !hideCity && <div style={{ fontSize: 13, color: "var(--ink-soft)", marginTop: 2, fontStyle: "italic" }}>{day.blurb}</div>}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
           {stashCount(day) > 0 && (
@@ -709,53 +817,36 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity }) {
 
       {expanded && (
         <div style={{ padding: "0 16px 18px", borderTop: "1px dashed rgba(46,43,38,0.18)" }}>
-          <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
-            {!hideCity && (
-              <div style={{ flex: "1 1 160px" }}>
-                <span className="pm-label">Where</span>
-                <input className="pm-input" value={day.city} onChange={(e) => updateDay((d) => ({ ...d, city: e.target.value }))} placeholder="City or neighborhood" />
-              </div>
-            )}
-            <div style={{ flex: "2 1 220px" }}>
-              <span className="pm-label">One line about the day</span>
-              <input className="pm-input" value={day.blurb} onChange={(e) => updateDay((d) => ({ ...d, blurb: e.target.value }))} placeholder="What's this day about" />
-            </div>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10, marginTop: 14 }}>
-            <DaySlot icon={Sunrise} label="Morning" value={day.morning} onChange={(v) => updateDay((d) => ({ ...d, morning: v }))} />
-            <DaySlot icon={Sun} label="Noon" value={day.noon} onChange={(v) => updateDay((d) => ({ ...d, noon: v }))} />
-            <DaySlot icon={Moon} label="Evening" value={day.eve} onChange={(v) => updateDay((d) => ({ ...d, eve: v }))} />
-          </div>
-
           <div style={{ marginTop: 14 }}>
-            <div className="pm-mono" style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--ink-soft)", marginBottom: 8 }}>Extra stops today</div>
-            {(day.legs || []).map((leg) => (
-              <div key={leg.id} style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 8, background: "#FAF8F4", border: "1px solid rgba(46,43,38,0.14)", borderRadius: 8, padding: 10 }}>
-                <div style={{ flex: 1 }}>
-                  <input className="pm-input" style={{ fontSize: 12, padding: "5px 8px", marginBottom: 6 }} value={leg.label} onChange={(e) => updateLeg(leg.id, { label: e.target.value })} placeholder="e.g. Gas stop, 2pm" />
-                  <textarea className="pm-textarea" style={{ fontSize: 13, minHeight: 44 }} value={leg.text} onChange={(e) => updateLeg(leg.id, { text: e.target.value })} placeholder="Details" />
+            <span className="pm-label">{hideCity ? "Day title" : "Where"}</span>
+            <input className="pm-input" value={titleValue} onChange={(e) => updateDay((d) => ({ ...d, [titleField]: e.target.value }))} placeholder={hideCity ? "What's this day about" : "City or neighborhood"} />
+          </div>
+
+          <div style={{ marginTop: 16 }}>
+            <div className="pm-mono" style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--ink-soft)", marginBottom: 8 }}>Activities</div>
+            {(day.activities || []).map((a, idx) => (
+              <div key={a.id} style={{ marginBottom: 10, background: "#FAF8F4", border: "1px solid rgba(46,43,38,0.14)", borderRadius: 8, padding: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                  <span className="pm-mono" style={{ fontSize: 9, color: "var(--ink-soft)", opacity: 0.75 }}>STOP {idx + 1}</span>
+                  <button onClick={() => removeActivity(a.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)" }} aria-label="Remove activity"><X size={13} /></button>
                 </div>
-                <button onClick={() => removeLeg(leg.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)" }} aria-label="Remove stop"><X size={13} /></button>
+                <div style={{ marginBottom: 6 }}>
+                  <span className="pm-label">Where</span>
+                  <input className="pm-input" style={{ fontSize: 13, padding: "6px 8px" }} value={a.where} onChange={(e) => updateActivity(a.id, { where: e.target.value })} placeholder="Place or stop" />
+                </div>
+                <div>
+                  <span className="pm-label">To do</span>
+                  <textarea className="pm-textarea" style={{ fontSize: 13, minHeight: 50 }} value={a.text} onChange={(e) => updateActivity(a.id, { text: e.target.value })} placeholder="What's the plan here" />
+                </div>
               </div>
             ))}
-            <button className="pm-btn pm-btn-ghost" style={{ fontSize: 11, padding: "5px 10px", color: "var(--ink)", borderColor: "rgba(46,43,38,0.3)" }} onClick={addLeg}><Plus size={12} /> add another stop</button>
+            {(day.activities || []).length === 0 && <div style={{ fontSize: 12, color: "var(--ink-soft)", fontStyle: "italic", marginBottom: 8 }}>No activities yet.</div>}
+            <button className="pm-btn pm-btn-ghost" style={{ fontSize: 11, padding: "5px 10px", color: "var(--ink)", borderColor: "rgba(46,43,38,0.3)" }} onClick={addActivity}><Plus size={12} /> add an activity</button>
           </div>
 
           <StashPocket day={day} updateDay={updateDay} />
         </div>
       )}
-    </div>
-  );
-}
-
-function DaySlot({ icon: Icon, label, value, onChange }) {
-  return (
-    <div style={{ background: "#FAF8F4", border: "1px solid rgba(46,43,38,0.14)", borderRadius: 8, padding: 10 }}>
-      <div className="pm-mono" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--ink-soft)", marginBottom: 6 }}>
-        <Icon size={12} /> {label}
-      </div>
-      <textarea className="pm-textarea" style={{ background: "transparent", border: "none", padding: 0, minHeight: 60 }} value={value} onChange={(e) => onChange(e.target.value)} placeholder="What's the plan" />
     </div>
   );
 }
@@ -1104,7 +1195,7 @@ function GoogleMapTab({ trip, updateTrip }) {
   if (status === "needs-key") {
     return (
       <div style={{ background: "#FAF8F4", border: "1.5px dashed rgba(243,236,221,0.4)", borderRadius: 12, padding: 24, maxWidth: 460, color: "var(--ink)" }}>
-        <div className="pm-display" style={{ fontSize: 18, marginBottom: 8 }}>No API key found</div>
+        <div className="pm-display" style={{ fontSize: 20, marginBottom: 8 }}>No API key found</div>
         <div style={{ fontSize: 13, color: "var(--ink-soft)", marginBottom: 14 }}>
           This looks for a Vercel environment variable named <code>VITE_GOOGLE_MAPS_API_KEY</code> (Project Settings → Environment Variables), then redeploy. It has to have the <code>VITE_</code> prefix or Vite won't include it in the site. You'll also want the <strong>Maps JavaScript API</strong> enabled on that key, alongside Places.
           <br /><br />
