@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
-  MapPin, Plus, X, ChevronDown, ArrowLeft,
+  MapPin, Plus, X, ChevronDown, ArrowLeft, Search,
   Map as MapIcon, BookOpen, Tag, KeyRound, BedDouble, Utensils,
   Link2, Compass, Trash2, PenLine, Globe, Camera,
 } from "lucide-react";
@@ -206,7 +206,7 @@ function buildSeedTrip() {
 
   return {
     id: uid(),
-    name: "Vancouver → San Diego",
+    name: "Pacific Coast Roadtrip",
     type: "multi",
     location: "",
     subtitle: "Pacific coast road trip",
@@ -217,9 +217,9 @@ function buildSeedTrip() {
 }
 
 const CATEGORY_META = {
-  restaurant: { label: "Restaurants", icon: Utensils, ramp: "#C1591F" },
-  spot: { label: "Spots", icon: MapPin, ramp: "#3C7A54" },
-  hotel: { label: "Hotels", icon: BedDouble, ramp: "#2C4F73" },
+  restaurant: { label: "Restaurants", icon: Utensils, ramp: "#C1591F", dark: "#7A3811" },
+  spot: { label: "Spots", icon: MapPin, ramp: "#3C7A54", dark: "#1F4A32" },
+  hotel: { label: "Hotels", icon: BedDouble, ramp: "#2C5F9E", dark: "#1B3F6B" },
 };
 
 const CARD_GRADIENTS = [
@@ -229,11 +229,76 @@ const CARD_GRADIENTS = [
   "linear-gradient(135deg,#B98A2E,#6B4E17)",
 ];
 
-const PIN_TONES = ["#D9622A", "#3C7A54", "#3E6690", "#B98A2E"];
+// Classic pushpin colors, each with a lighter cap tone and a darker collar tone.
+const PIN_TONES = [
+  { main: "#E8402E", dark: "#A82418" },
+  { main: "#2F7A46", dark: "#1F5230" },
+  { main: "#2C5F9E", dark: "#1B3F6B" },
+  { main: "#E8A33D", dark: "#A8721F" },
+];
 
 function tripDateRange(trip) {
   if (!trip.days.length) return "";
   return `${formatDateShort(trip.days[0].date)} – ${formatDateShort(trip.days[trip.days.length - 1].date)}`;
+}
+
+// ---- Shared Google Maps loader ----
+// Reads the key from a Vercel env var (must be prefixed VITE_) or, as a
+// fallback, a key pasted into the Live Map tab and stored in localStorage.
+const ENV_KEY_NAMES = ["VITE_GOOGLE_MAPS_API_KEY", "VITE_GOOGLE_PLACES_API_KEY", "VITE_GOOGLE_API_KEY", "VITE_GMAPS_API_KEY"];
+function getEnvApiKey() {
+  for (const name of ENV_KEY_NAMES) {
+    const v = import.meta.env[name];
+    if (v) return v;
+  }
+  return "";
+}
+function getStoredApiKey() {
+  const envKey = getEnvApiKey();
+  if (envKey) return envKey;
+  try { return localStorage.getItem(GMAPS_KEY_STORAGE) || ""; } catch (e) { return ""; }
+}
+let gmapsLoadPromise = null;
+function loadGoogleMaps(apiKey) {
+  if (window.google && window.google.maps && window.google.maps.places) return Promise.resolve();
+  if (!apiKey) return Promise.reject(new Error("no key"));
+  if (gmapsLoadPromise) return gmapsLoadPromise;
+  gmapsLoadPromise = new Promise((resolve, reject) => {
+    const existing = document.getElementById("pm-gmaps-script");
+    if (existing) { existing.addEventListener("load", resolve); existing.addEventListener("error", reject); return; }
+    const script = document.createElement("script");
+    script.id = "pm-gmaps-script";
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=places`;
+    script.async = true;
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+  return gmapsLoadPromise;
+}
+// Quiet, optional enhancement hook — resolves true only if a key exists
+// and the script loads; never throws or shows an error to the caller.
+function useGoogleMapsReady() {
+  const [ready, setReady] = useState(() => !!(window.google && window.google.maps && window.google.maps.places));
+  useEffect(() => {
+    if (ready) return;
+    const key = getStoredApiKey();
+    if (!key) return;
+    loadGoogleMaps(key).then(() => setReady(true)).catch(() => {});
+  }, [ready]);
+  return ready;
+}
+
+function thumbtackIconUrl(main, dark) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="52" viewBox="0 0 36 52">
+    <path d="M17 30 L27 47" stroke="#1a1a1a" stroke-width="5" stroke-linecap="round"/>
+    <path d="M17 30 L27 47" stroke="#D2D2D2" stroke-width="2.4" stroke-linecap="round"/>
+    <rect x="9" y="16" width="16" height="16" rx="2" fill="${dark}" stroke="#1a1a1a" stroke-width="2"/>
+    <rect x="11" y="16" width="4" height="16" fill="#fff" opacity="0.22"/>
+    <ellipse cx="17" cy="15" rx="16" ry="8" fill="${main}" stroke="#1a1a1a" stroke-width="2.2"/>
+    <ellipse cx="11" cy="11" rx="4.6" ry="2.2" fill="#fff" opacity="0.55" transform="rotate(-12 11 11)"/>
+  </svg>`;
+  return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
 }
 
 export default function App() {
@@ -304,15 +369,12 @@ export default function App() {
           --ink: #2A2019;
           --ink-soft: #5C4E3F;
           --wood: #5C4630;
-          --wood-dark: #3C2E1E;
           --card-shadow: rgba(0,0,0,0.4);
           font-family: 'Nunito', sans-serif;
           color: var(--cream);
-          min-height: 100%;
+          min-height: 100vh;
           width: 100%;
           box-sizing: border-box;
-          padding: 0 20px 60px;
-          border-radius: 14px;
           background:
             repeating-linear-gradient(3deg, rgba(0,0,0,0.06) 0px, rgba(0,0,0,0.06) 2px, transparent 2px, transparent 7px),
             repeating-linear-gradient(3deg, rgba(255,255,255,0.035) 0px, transparent 3px, transparent 10px),
@@ -365,6 +427,8 @@ export default function App() {
         .pm-seg { display: inline-flex; border: 1.5px solid rgba(46,43,38,0.25); border-radius: 20px; overflow: hidden; }
         .pm-seg button { font-family: 'Nunito', sans-serif; font-weight: 700; font-size: 12px; border: none; padding: 8px 14px; cursor: pointer; background: #FAF8F4; color: var(--ink); }
         .pm-seg button.active { background: var(--forest); color: #fff; }
+        .pm-content { padding: 0 20px 60px; }
+        .pac-container { font-family: 'Nunito', sans-serif; z-index: 1000; }
       `}</style>
 
       {trips === null ? (
@@ -372,9 +436,19 @@ export default function App() {
           sorting through the postcards…
         </div>
       ) : activeTrip ? (
-        <TripView trip={activeTrip} onBack={() => setActiveTripId(null)} updateTrip={(fn) => updateTrip(activeTrip.id, fn)} />
+        <>
+          <Masthead />
+          <div className="pm-content">
+            <TripView trip={activeTrip} onBack={() => setActiveTripId(null)} updateTrip={(fn) => updateTrip(activeTrip.id, fn)} />
+          </div>
+        </>
       ) : (
-        <HomeView trips={trips} onOpen={setActiveTripId} onNew={() => setShowNewForm(true)} onDelete={deleteTrip} />
+        <>
+          <Masthead />
+          <div className="pm-content">
+            <HomeView trips={trips} onOpen={setActiveTripId} onNew={() => setShowNewForm(true)} onDelete={deleteTrip} />
+          </div>
+        </>
       )}
 
       {showNewForm && <NewTripModal onCancel={() => setShowNewForm(false)} onCreate={createTrip} />}
@@ -382,7 +456,7 @@ export default function App() {
   );
 }
 
-function PineTree({ size = 46 }) {
+function PineTree({ size = 40 }) {
   return (
     <svg width={size} height={size * 1.3} viewBox="0 0 46 60">
       <rect x="20" y="46" width="6" height="10" fill="#4A3210" />
@@ -393,29 +467,51 @@ function PineTree({ size = 46 }) {
   );
 }
 
-function Header() {
+function SuitcaseIcon({ size = 40 }) {
   return (
-    <div style={{ background: "var(--wood-dark)", borderRadius: 16, padding: "22px 20px", marginTop: 20, marginBottom: 30, boxShadow: "0 6px 16px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)", border: "1px solid rgba(0,0,0,0.3)" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 14 }}>
-        <PineTree size={42} />
-        <div style={{ textAlign: "center" }}>
-          <div className="pm-display" style={{ fontSize: 46, color: "var(--cream)", letterSpacing: "0.02em" }}>Postmark</div>
-          <div className="pm-hand" style={{ fontSize: 19, color: "var(--cream)", opacity: 0.85, marginTop: -2 }}>a scrapbook for trips still taking shape</div>
-        </div>
-        <PineTree size={42} />
+    <svg width={size} height={size} viewBox="0 0 46 40">
+      <rect x="16" y="2" width="14" height="10" rx="3" fill="none" stroke="#1a1a1a" strokeWidth="2.2" />
+      <rect x="4" y="10" width="38" height="26" rx="4" fill="#C1591F" stroke="#1a1a1a" strokeWidth="2.2" />
+      <line x1="4" y1="20" x2="42" y2="20" stroke="#1a1a1a" strokeWidth="1.6" opacity="0.5" />
+      <rect x="9" y="16" width="6" height="8" fill="#1a1a1a" opacity="0.22" />
+      <rect x="31" y="16" width="6" height="8" fill="#1a1a1a" opacity="0.22" />
+    </svg>
+  );
+}
+
+function BicycleIcon({ size = 40 }) {
+  return (
+    <svg width={size} height={size * 0.72} viewBox="0 0 60 40">
+      <circle cx="12" cy="28" r="9" fill="none" stroke="#1a1a1a" strokeWidth="2.4" />
+      <circle cx="48" cy="28" r="9" fill="none" stroke="#1a1a1a" strokeWidth="2.4" />
+      <path d="M12 28 L24 12 L36 28 M24 12 L30 12 M36 28 L48 28 M20 20 L30 20" stroke="#2C5F9E" strokeWidth="2.4" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function Masthead() {
+  return (
+    <div style={{ background: "#FFFFFF", padding: "18px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, boxShadow: "0 2px 12px rgba(0,0,0,0.3)" }}>
+      <div className="pm-display" style={{ fontSize: 38, color: "#1a1a1a" }}>Postmark</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+        <SuitcaseIcon size={34} />
+        <PineTree size={30} />
+        <BicycleIcon size={34} />
       </div>
     </div>
   );
 }
 
-function Pushpin({ color, style }) {
+function Thumbtack({ tone, style }) {
   return (
-    <svg width="42" height="50" viewBox="0 0 42 50" style={{ filter: "drop-shadow(0 5px 5px rgba(0,0,0,0.45))", ...style }}>
-      <ellipse cx="21" cy="45" rx="5" ry="1.8" fill="rgba(0,0,0,0.35)" />
-      <path d="M20 28 L33 41" stroke="#1a1a1a" strokeWidth="8" strokeLinecap="round" />
-      <path d="M20 28 L33 41" stroke="#D8D8D8" strokeWidth="4.5" strokeLinecap="round" />
-      <ellipse cx="19" cy="16" rx="17" ry="13" fill={color} stroke="#1a1a1a" strokeWidth="3" />
-      <ellipse cx="12" cy="9" rx="5" ry="3.2" fill="#fff" opacity="0.5" transform="rotate(-20 12 9)" />
+    <svg width="36" height="52" viewBox="0 0 36 52" style={{ filter: "drop-shadow(0 5px 5px rgba(0,0,0,0.45))", ...style }}>
+      <ellipse cx="20" cy="46" rx="4.5" ry="1.6" fill="rgba(0,0,0,0.32)" />
+      <path d="M17 30 L27 47" stroke="#1a1a1a" strokeWidth="5" strokeLinecap="round" />
+      <path d="M17 30 L27 47" stroke="#D2D2D2" strokeWidth="2.4" strokeLinecap="round" />
+      <rect x="9" y="16" width="16" height="16" rx="2" fill={tone.dark} stroke="#1a1a1a" strokeWidth="2" />
+      <rect x="11" y="16" width="4" height="16" fill="#fff" opacity="0.22" />
+      <ellipse cx="17" cy="15" rx="16" ry="8" fill={tone.main} stroke="#1a1a1a" strokeWidth="2.2" />
+      <ellipse cx="11" cy="11" rx="4.6" ry="2.2" fill="#fff" opacity="0.55" transform="rotate(-12 11 11)" />
     </svg>
   );
 }
@@ -439,17 +535,40 @@ function PostmarkStamp({ accent, index, topText }) {
   );
 }
 
+function ArchedTitle({ name, index }) {
+  const pathId = `pm-title-arc-${index}`;
+  const fontSize = name.length > 18 ? 30 : name.length > 11 ? 38 : 46;
+  return (
+    <svg viewBox="0 0 320 220" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
+      <defs>
+        <path id={pathId} d="M 20,155 Q 160,45 300,155" />
+      </defs>
+      <text
+        fontSize={fontSize}
+        fill="#fff"
+        stroke="#1a1a1a"
+        strokeWidth="7"
+        strokeLinejoin="round"
+        paintOrder="stroke"
+        className="pm-display"
+      >
+        <textPath href={`#${pathId}`} startOffset="50%" textAnchor="middle">{name}</textPath>
+      </text>
+    </svg>
+  );
+}
+
 function TripCard({ trip, index, onOpen, onDelete, flipping, onStartFlip }) {
   const gradient = CARD_GRADIENTS[index % CARD_GRADIENTS.length];
-  const pinColor = PIN_TONES[index % PIN_TONES.length];
+  const tone = PIN_TONES[index % PIN_TONES.length];
   const pinRot = index % 2 === 0 ? -14 : 11;
   const cardRot = index % 3 === 0 ? -1.4 : (index % 3 === 1 ? 1 : -0.5);
-  const stampAccent = PIN_TONES[(index + 1) % PIN_TONES.length];
+  const stampAccent = PIN_TONES[(index + 1) % PIN_TONES.length].main;
 
   return (
     <div className="pm-card-wrap" style={{ position: "relative" }}>
-      <Pushpin
-        color={pinColor}
+      <Thumbtack
+        tone={tone}
         style={{ position: "absolute", top: -20, left: index % 2 === 0 ? 26 : "auto", right: index % 2 === 0 ? "auto" : 26, transform: `rotate(${pinRot}deg)`, zIndex: 3 }}
       />
       <div
@@ -462,38 +581,26 @@ function TripCard({ trip, index, onOpen, onDelete, flipping, onStartFlip }) {
           borderRadius: "4px 10px 5px 9px",
           overflow: "hidden",
           cursor: "pointer",
-          padding: 16,
+          padding: 9,
           boxShadow: "0 10px 20px var(--card-shadow)",
           transform: `rotate(${cardRot}deg)`,
         }}
       >
         <button
           onClick={(e) => { e.stopPropagation(); onDelete(trip.id); }}
-          style={{ position: "absolute", top: 22, left: 22, background: "rgba(0,0,0,0.5)", borderRadius: "50%", border: "none", width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 2 }}
+          style={{ position: "absolute", top: 15, left: 15, background: "rgba(0,0,0,0.5)", borderRadius: "50%", border: "none", width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 2 }}
           aria-label="Delete trip"
         >
           <X size={13} color="#fff" />
         </button>
 
-        <div style={{ position: "relative", height: 210, borderRadius: "2px 7px 3px 6px", overflow: "hidden", background: trip.coverImage ? `center / cover no-repeat url(${trip.coverImage})` : gradient, border: "2px solid rgba(0,0,0,0.65)" }}>
+        <div style={{ position: "relative", height: 220, borderRadius: "2px 7px 3px 6px", overflow: "hidden", background: trip.coverImage ? `center / cover no-repeat url(${trip.coverImage})` : gradient, border: "2px solid rgba(0,0,0,0.65)" }}>
           <PostmarkStamp accent={stampAccent} index={index} topText={`★ ${formatDateShort(trip.days[0] ? trip.days[0].date : "")} ★`} />
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none", padding: "0 16px" }}>
-            <div className="pm-display" style={{
-              fontSize: trip.name.length > 16 ? 26 : 32,
-              color: "#fff",
-              transform: "rotate(-11deg)",
-              textAlign: "center",
-              lineHeight: 1.1,
-              textShadow: "2px 2px 0 rgba(0,0,0,0.7), -2px -2px 0 rgba(0,0,0,0.7), 2px -2px 0 rgba(0,0,0,0.7), -2px 2px 0 rgba(0,0,0,0.7), 0 5px 10px rgba(0,0,0,0.4)",
-            }}>{trip.name}</div>
-          </div>
+          <ArchedTitle name={trip.name} index={index} />
         </div>
-
-        <div style={{ marginTop: 10 }}>
-          <div className="pm-mono" style={{ fontSize: 11, color: "var(--ink-soft)" }}>
-            {trip.type === "single" && trip.location ? `based in ${trip.location} · ` : ""}{tripDateRange(trip)} · {trip.days.length}d
-          </div>
-        </div>
+      </div>
+      <div className="pm-mono" style={{ fontSize: 11, color: "var(--cream)", opacity: 0.85, marginTop: 8, paddingLeft: 4 }}>
+        {trip.type === "single" && trip.location ? `based in ${trip.location} · ` : ""}{tripDateRange(trip)} · {trip.days.length}d
       </div>
     </div>
   );
@@ -510,9 +617,7 @@ function HomeView({ trips, onOpen, onNew, onDelete }) {
 
   return (
     <div>
-      <Header />
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 44, paddingTop: 18 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 44, paddingTop: 34 }}>
         {trips.map((trip, i) => (
           <TripCard key={trip.id} trip={trip} index={i} onOpen={onOpen} onDelete={onDelete} flipping={flippingId === trip.id} onStartFlip={handleOpen} />
         ))}
@@ -540,7 +645,7 @@ function HomeView({ trips, onOpen, onNew, onDelete }) {
   );
 }
 
-function TripTypeFields({ type, setType, location, setLocation, namePlaceholder }) {
+function TripTypeFields({ type, setType, location, setLocation }) {
   return (
     <>
       <div style={{ marginBottom: 14 }}>
@@ -687,7 +792,7 @@ function TripView({ trip, onBack, updateTrip }) {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 20, marginBottom: 18 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 24, marginBottom: 18 }}>
         <button className="pm-btn pm-btn-ghost" onClick={onBack}><ArrowLeft size={13} /> all trips</button>
         <button className="pm-btn pm-btn-ghost" onClick={() => setShowEdit(true)}><PenLine size={13} /> edit trip</button>
       </div>
@@ -701,7 +806,7 @@ function TripView({ trip, onBack, updateTrip }) {
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <TabPill active={tab === "itinerary"} onClick={() => setTab("itinerary")} icon={BookOpen} label="Itinerary" />
-          <TabPill active={tab === "map"} onClick={() => setTab("map")} icon={MapIcon} label="Map" />
+          <TabPill active={tab === "map"} onClick={() => setTab("map")} icon={MapIcon} label="Stops" />
           <TabPill active={tab === "gmap"} onClick={() => setTab("gmap")} icon={Globe} label="Live Map" />
         </div>
       </div>
@@ -945,6 +1050,7 @@ function MapTab({ trip, updateTrip }) {
   const [filter, setFilter] = useState("all");
   const [selectedPinId, setSelectedPinId] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [editingPin, setEditingPin] = useState(null);
 
   const days = trip.days;
   const pins = trip.pins.filter((p) => filter === "all" || p.category === filter);
@@ -952,7 +1058,8 @@ function MapTab({ trip, updateTrip }) {
 
   function dayIndexOf(dayId) { return days.findIndex((d) => d.id === dayId); }
   function addPin(pin) { updateTrip((t) => ({ ...t, pins: [...t.pins, { id: uid(), ...pin }] })); setShowForm(false); }
-  function removePin(id) { updateTrip((t) => ({ ...t, pins: t.pins.filter((p) => p.id !== id) })); setSelectedPinId(null); }
+  function savePin(id, patch) { updateTrip((t) => ({ ...t, pins: t.pins.map((p) => (p.id === id ? { ...p, ...patch } : p)) })); setEditingPin(null); }
+  function removePin(id) { updateTrip((t) => ({ ...t, pins: t.pins.filter((p) => p.id !== id) })); setSelectedPinId(null); setEditingPin(null); }
 
   const trackHeight = Math.max(360, days.length * 46);
 
@@ -965,10 +1072,11 @@ function MapTab({ trip, updateTrip }) {
             <FilterChip key={key} active={filter === key} onClick={() => setFilter(key)} label={meta.label} icon={meta.icon} color={meta.ramp} />
           ))}
         </div>
-        <button className="pm-btn pm-btn-solid" onClick={() => setShowForm(!showForm)}><Plus size={13} /> add a pin</button>
+        <button className="pm-btn pm-btn-solid" onClick={() => { setShowForm(!showForm); setEditingPin(null); }}><Plus size={13} /> add a pin</button>
       </div>
 
-      {showForm && <PinForm days={days} onCancel={() => setShowForm(false)} onSubmit={addPin} />}
+      {showForm && <PinForm days={days} onCancel={() => setShowForm(false)} onSubmit={addPin} submitLabel="Save pin" />}
+      {editingPin && <PinForm days={days} initial={editingPin} onCancel={() => setEditingPin(null)} onSubmit={(patch) => savePin(editingPin.id, patch)} submitLabel="Save changes" />}
 
       <div style={{ display: "flex", gap: 24 }}>
         <div style={{ position: "relative", width: 140, flexShrink: 0, height: trackHeight }}>
@@ -986,7 +1094,7 @@ function MapTab({ trip, updateTrip }) {
                   const meta = CATEGORY_META[pin.category];
                   const Icon = meta.icon;
                   return (
-                    <button key={pin.id} onClick={() => setSelectedPinId(pin.id)} title={pin.name}
+                    <button key={pin.id} onClick={() => { setSelectedPinId(pin.id); setEditingPin(null); setShowForm(false); }} title={pin.name}
                       style={{ position: "absolute", top: -2, left: side * (34 + j * 22), width: 22, height: 22, borderRadius: "50%", background: selectedPinId === pin.id ? meta.ramp : "#FFFDF9", border: `2px solid ${meta.ramp}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0, color: selectedPinId === pin.id ? "#fff" : meta.ramp }}>
                       <Icon size={11} />
                     </button>
@@ -998,8 +1106,8 @@ function MapTab({ trip, updateTrip }) {
         </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          {selectedPin ? (
-            <PinDetail pin={selectedPin} day={days.find((d) => d.id === selectedPin.dayId)} onClose={() => setSelectedPinId(null)} onRemove={() => removePin(selectedPin.id)} />
+          {selectedPin && !editingPin ? (
+            <PinDetail pin={selectedPin} day={days.find((d) => d.id === selectedPin.dayId)} onClose={() => setSelectedPinId(null)} onRemove={() => removePin(selectedPin.id)} onEdit={() => setEditingPin(selectedPin)} />
           ) : (
             <div style={{ display: "grid", gap: 8 }}>
               {pins.length === 0 && <div style={{ color: "var(--cream)", opacity: 0.7, fontSize: 13, fontStyle: "italic" }}>No pins here yet — add one, or pick a marker on the route.</div>}
@@ -1008,7 +1116,7 @@ function MapTab({ trip, updateTrip }) {
                 const Icon = meta.icon;
                 const day = days.find((d) => d.id === pin.dayId);
                 return (
-                  <div key={pin.id} onClick={() => setSelectedPinId(pin.id)} style={{ display: "flex", alignItems: "center", gap: 10, background: "#FFFDF9", border: "1px solid rgba(46,43,38,0.12)", borderRadius: 8, padding: "9px 12px", cursor: "pointer" }}>
+                  <div key={pin.id} onClick={() => { setSelectedPinId(pin.id); setEditingPin(null); }} style={{ display: "flex", alignItems: "center", gap: 10, background: "#FFFDF9", border: "1px solid rgba(46,43,38,0.12)", borderRadius: 8, padding: "9px 12px", cursor: "pointer" }}>
                     <span style={{ color: meta.ramp, display: "flex" }}><Icon size={15} /></span>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 14, fontWeight: 700, color: "var(--ink)" }}>{pin.name}</div>
@@ -1033,7 +1141,7 @@ function FilterChip({ active, onClick, label, icon: Icon, color }) {
   );
 }
 
-function PinDetail({ pin, day, onClose, onRemove }) {
+function PinDetail({ pin, day, onClose, onRemove, onEdit }) {
   const meta = CATEGORY_META[pin.category];
   const Icon = meta.icon;
   return (
@@ -1050,24 +1158,44 @@ function PinDetail({ pin, day, onClose, onRemove }) {
       </div>
       {pin.note && <div style={{ marginTop: 10, fontSize: 14, color: "var(--ink)" }}>{pin.note}</div>}
       {pin.link && <a href={pin.link} target="_blank" rel="noreferrer" className="pm-mono" style={{ display: "inline-flex", alignItems: "center", gap: 4, marginTop: 8, fontSize: 12, color: "var(--navy)" }}><Link2 size={12} /> {pin.link}</a>}
-      <button className="pm-btn pm-btn-ghost" style={{ marginTop: 14, color: "var(--ink)", borderColor: "rgba(46,43,38,0.3)" }} onClick={onRemove}><Trash2 size={12} /> remove pin</button>
+      <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+        <button className="pm-btn pm-btn-ghost" style={{ color: "var(--ink)", borderColor: "rgba(46,43,38,0.3)" }} onClick={onEdit}><PenLine size={12} /> edit</button>
+        <button className="pm-btn pm-btn-ghost" style={{ color: "var(--ink)", borderColor: "rgba(46,43,38,0.3)" }} onClick={onRemove}><Trash2 size={12} /> remove pin</button>
+      </div>
     </div>
   );
 }
 
-function PinForm({ days, onCancel, onSubmit, initialLat, initialLng }) {
-  const [name, setName] = useState("");
-  const [category, setCategory] = useState("restaurant");
-  const [dayId, setDayId] = useState(days[0] ? days[0].id : "");
-  const [note, setNote] = useState("");
-  const [link, setLink] = useState("");
+function PinForm({ days, onCancel, onSubmit, initial, submitLabel }) {
+  const [name, setName] = useState(initial ? initial.name : "");
+  const [category, setCategory] = useState(initial ? initial.category : "restaurant");
+  const [dayId, setDayId] = useState(initial ? initial.dayId : (days[0] ? days[0].id : ""));
+  const [note, setNote] = useState(initial ? initial.note : "");
+  const [link, setLink] = useState(initial ? initial.link : "");
+  const [latLng, setLatLng] = useState(initial && typeof initial.lat === "number" ? { lat: initial.lat, lng: initial.lng } : null);
+  const nameInputRef = useRef(null);
+  const acRef = useRef(null);
+  const placesReady = useGoogleMapsReady();
+
+  useEffect(() => {
+    if (!placesReady || !nameInputRef.current || acRef.current) return;
+    acRef.current = new window.google.maps.places.Autocomplete(nameInputRef.current, { fields: ["name", "geometry"] });
+    acRef.current.addListener("place_changed", () => {
+      const place = acRef.current.getPlace();
+      if (!place) return;
+      if (place.name) setName(place.name);
+      if (place.geometry && place.geometry.location) {
+        setLatLng({ lat: place.geometry.location.lat(), lng: place.geometry.location.lng() });
+      }
+    });
+  }, [placesReady]);
 
   return (
     <div style={{ background: "rgba(185,138,46,0.10)", border: "1px dashed var(--gold)", borderRadius: 10, padding: 14, marginBottom: 16, display: "grid", gap: 10 }}>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <div style={{ flex: "2 1 160px" }}>
-          <span className="pm-label">Name</span>
-          <input className="pm-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Place name" />
+          <span className="pm-label">Name {placesReady && <span style={{ opacity: 0.6 }}>(search enabled)</span>}</span>
+          <input ref={nameInputRef} className="pm-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Place name" />
         </div>
         <div style={{ flex: "1 1 120px" }}>
           <span className="pm-label">Category</span>
@@ -1091,35 +1219,23 @@ function PinForm({ days, onCancel, onSubmit, initialLat, initialLng }) {
         <input className="pm-input" value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://" />
       </div>
       <div style={{ display: "flex", gap: 8 }}>
-        <button className="pm-btn pm-btn-solid" onClick={() => name && onSubmit({ name, category, dayId, note, link, lat: initialLat, lng: initialLng })}>Save pin</button>
+        <button className="pm-btn pm-btn-solid" onClick={() => name && onSubmit({ name, category, dayId, note, link, lat: latLng ? latLng.lat : undefined, lng: latLng ? latLng.lng : undefined })}>{submitLabel || "Save pin"}</button>
         <button className="pm-btn pm-btn-ghost" style={{ color: "var(--ink)", borderColor: "rgba(46,43,38,0.3)" }} onClick={onCancel}>Cancel</button>
       </div>
     </div>
   );
 }
 
-// ---- Live Google Map tab ----
-// The key is read from a Vercel environment variable (must be prefixed
-// VITE_ so Vite includes it in the client bundle) — never hardcoded here.
-const ENV_KEY_NAMES = ["VITE_GOOGLE_MAPS_API_KEY", "VITE_GOOGLE_PLACES_API_KEY", "VITE_GOOGLE_API_KEY", "VITE_GMAPS_API_KEY"];
-function getEnvApiKey() {
-  for (const name of ENV_KEY_NAMES) {
-    const v = import.meta.env[name];
-    if (v) return v;
-  }
-  return "";
-}
-
 function GoogleMapTab({ trip, updateTrip }) {
   const envKey = getEnvApiKey();
-  const [apiKey, setApiKey] = useState(() => {
-    if (envKey) return envKey;
-    try { return localStorage.getItem(GMAPS_KEY_STORAGE) || ""; } catch (e) { return ""; }
-  });
+  const [apiKey, setApiKey] = useState(() => getStoredApiKey());
   const [keyInput, setKeyInput] = useState("");
   const [status, setStatus] = useState(apiKey ? "loading" : "needs-key");
   const [pendingLatLng, setPendingLatLng] = useState(null);
+  const [selectedPinId, setSelectedPinId] = useState(null);
+  const [editingPin, setEditingPin] = useState(null);
   const mapRef = useRef(null);
+  const searchRef = useRef(null);
   const mapObjRef = useRef(null);
   const markersRef = useRef([]);
 
@@ -1136,16 +1252,7 @@ function GoogleMapTab({ trip, updateTrip }) {
 
   useEffect(() => {
     if (!apiKey) return;
-    if (window.google && window.google.maps) { setStatus("ready"); return; }
-    const existing = document.getElementById("pm-gmaps-script");
-    if (existing) { existing.addEventListener("load", () => setStatus("ready")); return; }
-    const script = document.createElement("script");
-    script.id = "pm-gmaps-script";
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=places`;
-    script.async = true;
-    script.onload = () => setStatus("ready");
-    script.onerror = () => setStatus("error");
-    document.head.appendChild(script);
+    loadGoogleMaps(apiKey).then(() => setStatus("ready")).catch(() => setStatus("error"));
   }, [apiKey]);
 
   useEffect(() => {
@@ -1154,9 +1261,26 @@ function GoogleMapTab({ trip, updateTrip }) {
     const center = geocoded.length
       ? { lat: geocoded.reduce((s, p) => s + p.lat, 0) / geocoded.length, lng: geocoded.reduce((s, p) => s + p.lng, 0) / geocoded.length }
       : { lat: 40, lng: -110 };
-    const map = new window.google.maps.Map(mapRef.current, { center, zoom: geocoded.length ? 6 : 4 });
+    const map = new window.google.maps.Map(mapRef.current, {
+      center,
+      zoom: geocoded.length ? 6 : 4,
+      gestureHandling: "cooperative",
+      zoomControl: true,
+      zoomControlOptions: { style: window.google.maps.ZoomControlStyle.LARGE },
+    });
     mapObjRef.current = map;
-    map.addListener("click", (e) => setPendingLatLng({ lat: e.latLng.lat(), lng: e.latLng.lng() }));
+    map.addListener("click", (e) => { setPendingLatLng({ lat: e.latLng.lat(), lng: e.latLng.lng() }); setSelectedPinId(null); setEditingPin(null); });
+
+    if (searchRef.current) {
+      const ac = new window.google.maps.places.Autocomplete(searchRef.current, { fields: ["geometry"] });
+      ac.addListener("place_changed", () => {
+        const place = ac.getPlace();
+        if (!place || !place.geometry) return;
+        if (place.geometry.viewport) map.fitBounds(place.geometry.viewport);
+        else { map.panTo(place.geometry.location); map.setZoom(13); }
+      });
+    }
+
     return () => { markersRef.current.forEach((m) => m.setMap(null)); markersRef.current = []; };
   }, [status]);
 
@@ -1170,27 +1294,21 @@ function GoogleMapTab({ trip, updateTrip }) {
         position: { lat: pin.lat, lng: pin.lng },
         map: mapObjRef.current,
         title: pin.name,
-        icon: { path: window.google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: meta.ramp, fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2 },
+        icon: {
+          url: thumbtackIconUrl(meta.ramp, meta.dark),
+          scaledSize: new window.google.maps.Size(30, 43),
+          anchor: new window.google.maps.Point(22, 39),
+        },
       });
-      const info = new window.google.maps.InfoWindow();
-      marker.addListener("click", () => {
-        const el = document.createElement("div");
-        const title = document.createElement("div");
-        title.style.fontWeight = "700";
-        title.textContent = pin.name;
-        el.appendChild(title);
-        if (pin.note) {
-          const note = document.createElement("div");
-          note.style.fontSize = "12px";
-          note.textContent = pin.note;
-          el.appendChild(note);
-        }
-        info.setContent(el);
-        info.open(mapObjRef.current, marker);
-      });
+      marker.addListener("click", () => { setSelectedPinId(pin.id); setEditingPin(null); setPendingLatLng(null); });
       markersRef.current.push(marker);
     });
   }, [status, trip.pins]);
+
+  function savePin(id, patch) { updateTrip((t) => ({ ...t, pins: t.pins.map((p) => (p.id === id ? { ...p, ...patch } : p)) })); setEditingPin(null); }
+  function removePin(id) { updateTrip((t) => ({ ...t, pins: t.pins.filter((p) => p.id !== id) })); setSelectedPinId(null); setEditingPin(null); }
+
+  const selectedPin = trip.pins.find((p) => p.id === selectedPinId);
 
   if (status === "needs-key") {
     return (
@@ -1212,25 +1330,40 @@ function GoogleMapTab({ trip, updateTrip }) {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <div className="pm-mono" style={{ fontSize: 11, opacity: 0.8 }}>click anywhere on the map to drop a pin</div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, gap: 10, flexWrap: "wrap" }}>
+        <div style={{ position: "relative", flex: "1 1 240px", maxWidth: 340 }}>
+          <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--ink-soft)" }} />
+          <input ref={searchRef} className="pm-input" style={{ paddingLeft: 30 }} placeholder="Search for a place…" />
+        </div>
         {envKey ? (
           <span className="pm-mono" style={{ fontSize: 10, color: "var(--forest-light)" }}>connected via Vercel</span>
         ) : (
           <button className="pm-btn pm-btn-ghost" onClick={forgetKey} style={{ fontSize: 11 }}>disconnect</button>
         )}
       </div>
+      <div className="pm-mono" style={{ fontSize: 11, opacity: 0.8, marginBottom: 8 }}>click anywhere on the map to drop a pin — pinch to zoom, two-finger swipe to pan</div>
       <div ref={mapRef} style={{ width: "100%", height: 420, borderRadius: 12, border: "1.5px solid rgba(243,236,221,0.3)", background: "#FAF8F4" }} />
       {status === "loading" && <div style={{ marginTop: 10, fontSize: 12, opacity: 0.8 }}>loading map…</div>}
+
       {pendingLatLng && (
         <div style={{ marginTop: 14 }}>
           <PinForm
             days={trip.days}
-            initialLat={pendingLatLng.lat}
-            initialLng={pendingLatLng.lng}
+            initial={{ lat: pendingLatLng.lat, lng: pendingLatLng.lng }}
             onCancel={() => setPendingLatLng(null)}
             onSubmit={(pin) => { updateTrip((t) => ({ ...t, pins: [...t.pins, { id: uid(), ...pin }] })); setPendingLatLng(null); }}
           />
+        </div>
+      )}
+
+      {selectedPin && !editingPin && (
+        <div style={{ marginTop: 14 }}>
+          <PinDetail pin={selectedPin} day={trip.days.find((d) => d.id === selectedPin.dayId)} onClose={() => setSelectedPinId(null)} onRemove={() => removePin(selectedPin.id)} onEdit={() => setEditingPin(selectedPin)} />
+        </div>
+      )}
+      {editingPin && (
+        <div style={{ marginTop: 14 }}>
+          <PinForm days={trip.days} initial={editingPin} onCancel={() => setEditingPin(null)} onSubmit={(patch) => savePin(editingPin.id, patch)} submitLabel="Save changes" />
         </div>
       )}
     </div>
