@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
-  MapPin, Plus, X, ChevronDown, ArrowLeft, Search,
+  MapPin, Plus, X, ChevronDown, ArrowLeft, Search, GripVertical,
   Map as MapIcon, BookOpen, Tag, KeyRound, BedDouble, Utensils,
   Link2, Compass, Trash2, PenLine, Globe, Camera,
 } from "lucide-react";
@@ -44,12 +44,12 @@ function resizeImageFile(file, maxWidth = 640, quality = 0.85) {
         canvas.width = Math.round(img.width * scale);
         canvas.height = Math.round(img.height * scale);
         const ctx = canvas.getContext("2d");
-        try { ctx.filter = "saturate(1.9) contrast(1.3) brightness(1.03)"; } catch (e) { /* ignore */ }
+        try { ctx.filter = "saturate(1.05) contrast(1.05) brightness(1.01)"; } catch (e) { /* ignore */ }
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         try {
           const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
           const d = imgData.data;
-          const levels = 5;
+          const levels = 7;
           const step = 255 / (levels - 1);
           for (let i = 0; i < d.length; i += 4) {
             d[i] = Math.round(Math.round(d[i] / step) * step);
@@ -101,7 +101,19 @@ function migrateDay(day) {
   return { ...rest, activities };
 }
 function migrateTrip(trip) {
-  return { ...trip, days: (trip.days || []).map(migrateDay) };
+  let t = { ...trip, days: (trip.days || []).map(migrateDay) };
+  if (!t.sections) t = { ...t, sections: [] };
+  if (t.type === "single" && !t.stash) {
+    const merged = { hotels: [], spots: [], codes: [] };
+    t.days.forEach((d) => {
+      merged.hotels.push(...d.stash.hotels);
+      merged.spots.push(...d.stash.spots);
+      merged.codes.push(...d.stash.codes);
+    });
+    t = { ...t, stash: merged, days: t.days.map((d) => ({ ...d, stash: { hotels: [], spots: [], codes: [] } })) };
+  }
+  if (!t.stash) t = { ...t, stash: { hotels: [], spots: [], codes: [] } };
+  return t;
 }
 
 function rebuildDays(oldDays, newStart, newCount, type, location) {
@@ -213,6 +225,8 @@ function buildSeedTrip() {
     days,
     pins,
     coverImage: null,
+    sections: [],
+    stash: { hotels: [], spots: [], codes: [] },
   };
 }
 
@@ -333,6 +347,27 @@ export default function App() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(trips)); } catch (e) { /* ignore */ }
   }, [trips, loaded]);
 
+  // Push a history entry when opening a trip so the browser back button
+  // returns to the trip list instead of leaving the app entirely.
+  useEffect(() => {
+    function handlePop(e) {
+      setActiveTripId(e.state && e.state.tripId ? e.state.tripId : null);
+    }
+    window.addEventListener("popstate", handlePop);
+    return () => window.removeEventListener("popstate", handlePop);
+  }, []);
+
+  function openTrip(id) {
+    try { window.history.pushState({ tripId: id }, ""); } catch (e) { /* ignore */ }
+    setActiveTripId(id);
+  }
+  function closeTrip() {
+    try {
+      if (window.history.state && window.history.state.tripId) { window.history.back(); return; }
+    } catch (e) { /* ignore */ }
+    setActiveTripId(null);
+  }
+
   function updateTrip(tripId, fn) {
     setTrips((prev) => prev.map((t) => (t.id === tripId ? fn(t) : t)));
   }
@@ -350,10 +385,12 @@ export default function App() {
       days,
       pins: [],
       coverImage: null,
+      sections: [],
+      stash: { hotels: [], spots: [], codes: [] },
     };
     setTrips((prev) => [...(prev || []), trip]);
     setShowNewForm(false);
-    setActiveTripId(trip.id);
+    openTrip(trip.id);
   }
 
   function deleteTrip(tripId) {
@@ -445,14 +482,14 @@ export default function App() {
         <>
           <Masthead />
           <div className="pm-content">
-            <TripView trip={activeTrip} onBack={() => setActiveTripId(null)} updateTrip={(fn) => updateTrip(activeTrip.id, fn)} />
+            <TripView trip={activeTrip} onBack={closeTrip} updateTrip={(fn) => updateTrip(activeTrip.id, fn)} />
           </div>
         </>
       ) : (
         <>
           <Masthead />
           <div className="pm-content">
-            <HomeView trips={trips} onOpen={setActiveTripId} onNew={() => setShowNewForm(true)} onDelete={deleteTrip} />
+            <HomeView trips={trips} onOpen={openTrip} onNew={() => setShowNewForm(true)} onDelete={deleteTrip} />
           </div>
         </>
       )}
@@ -615,7 +652,7 @@ function TripCard({ trip, index, onOpen, onDelete, flipping, onStartFlip }) {
           <X size={12} color="#fff" />
         </button>
 
-        <div style={{ position: "relative", height: 150, borderRadius: "2px 7px 3px 6px", overflow: "hidden", background: trip.coverImage ? `center / cover no-repeat url(${trip.coverImage})` : gradient, border: "2px solid rgba(0,0,0,0.65)", filter: "saturate(1.5) contrast(1.15) brightness(1.02)" }}>
+        <div style={{ position: "relative", height: 150, borderRadius: "2px 7px 3px 6px", overflow: "hidden", background: trip.coverImage ? `center / cover no-repeat url(${trip.coverImage})` : gradient, border: "2px solid rgba(0,0,0,0.65)", filter: "saturate(0.9) contrast(1.02)" }}>
           <ArchedTitle name={trip.name} index={index} />
         </div>
         <PostmarkStamp accent={stampAccent} index={index} topText={`★ ${formatDateShort(trip.days[0] ? trip.days[0].date : "")} ★`} />
@@ -804,11 +841,66 @@ function EditTripModal({ trip, onCancel, onSave, onSetCover }) {
 
 function TripView({ trip, onBack, updateTrip }) {
   const [tab, setTab] = useState("itinerary");
-  const [expandedDayId, setExpandedDayId] = useState(null);
+  const [expandedDayIds, setExpandedDayIds] = useState(() => new Set());
   const [showEdit, setShowEdit] = useState(false);
 
   function updateDay(dayId, fn) {
     updateTrip((t) => ({ ...t, days: t.days.map((d) => (d.id === dayId ? fn(d) : d)) }));
+  }
+
+  function toggleDay(dayId) {
+    setExpandedDayIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(dayId)) next.delete(dayId); else next.add(dayId);
+      return next;
+    });
+  }
+
+  function reorderDays(fromIndex, toIndex) {
+    if (fromIndex === toIndex || fromIndex == null || toIndex == null) return;
+    updateTrip((t) => {
+      const startDate = t.days[0].date;
+      const days = [...t.days];
+      const [moved] = days.splice(fromIndex, 1);
+      days.splice(toIndex, 0, moved);
+      return { ...t, days: days.map((d, i) => ({ ...d, date: addDays(startDate, i) })) };
+    });
+  }
+
+  function moveActivity(fromDayId, activityId, toDayId, toIndex) {
+    updateTrip((t) => {
+      let moved = null;
+      let days = t.days.map((d) => {
+        if (d.id !== fromDayId) return d;
+        const activities = d.activities.filter((a) => {
+          if (a.id === activityId) { moved = a; return false; }
+          return true;
+        });
+        return { ...d, activities };
+      });
+      if (!moved) return t;
+      days = days.map((d) => {
+        if (d.id !== toDayId) return d;
+        const activities = [...d.activities];
+        const insertAt = typeof toIndex === "number" ? Math.min(toIndex, activities.length) : activities.length;
+        activities.splice(insertAt, 0, moved);
+        return { ...d, activities };
+      });
+      return { ...t, days };
+    });
+  }
+
+  function updateTripStash(fn) {
+    updateTrip((t) => ({ ...t, stash: fn(t.stash) }));
+  }
+  function addSection(section) {
+    updateTrip((t) => ({ ...t, sections: [...(t.sections || []), { id: uid(), stash: { hotels: [], spots: [], codes: [] }, ...section }] }));
+  }
+  function updateSection(id, fn) {
+    updateTrip((t) => ({ ...t, sections: t.sections.map((s) => (s.id === id ? fn(s) : s)) }));
+  }
+  function removeSection(id) {
+    updateTrip((t) => ({ ...t, sections: t.sections.filter((s) => s.id !== id) }));
   }
 
   return (
@@ -833,7 +925,18 @@ function TripView({ trip, onBack, updateTrip }) {
       </div>
 
       {tab === "itinerary" && (
-        <ItineraryTab trip={trip} expandedDayId={expandedDayId} setExpandedDayId={setExpandedDayId} updateDay={updateDay} />
+        <ItineraryTab
+          trip={trip}
+          expandedDayIds={expandedDayIds}
+          toggleDay={toggleDay}
+          updateDay={updateDay}
+          reorderDays={reorderDays}
+          moveActivity={moveActivity}
+          updateTripStash={updateTripStash}
+          addSection={addSection}
+          updateSection={updateSection}
+          removeSection={removeSection}
+        />
       )}
       {tab === "map" && <MapTab trip={trip} updateTrip={updateTrip} />}
       {tab === "gmap" && <GoogleMapTab trip={trip} updateTrip={updateTrip} />}
@@ -882,41 +985,130 @@ function stashCount(day) {
   return day.stash.hotels.length + day.stash.spots.length + day.stash.codes.length;
 }
 
-function ItineraryTab({ trip, expandedDayId, setExpandedDayId, updateDay }) {
+const ACT_TINTS = [
+  { bg: "rgba(193,89,31,0.10)", edge: "#C1591F" },
+  { bg: "rgba(46,89,64,0.10)", edge: "#2E5940" },
+  { bg: "rgba(44,79,115,0.10)", edge: "#2C4F73" },
+  { bg: "rgba(185,138,46,0.12)", edge: "#B98A2E" },
+];
+
+function parseDragData(e) {
+  try { return JSON.parse(e.dataTransfer.getData("text/plain")); } catch (err) { return null; }
+}
+
+function ItineraryTab({ trip, expandedDayIds, toggleDay, updateDay, reorderDays, moveActivity, updateTripStash, addSection, updateSection, removeSection }) {
+  function handleDrop(e, dayId, dayIndex, activityIndex) {
+    e.preventDefault();
+    const data = parseDragData(e);
+    if (!data) return;
+    if (data.type === "day" && typeof dayIndex === "number") reorderDays(data.fromIndex, dayIndex);
+    else if (data.type === "activity" && dayId) moveActivity(data.dayId, data.activityId, dayId, activityIndex);
+  }
+
   if (trip.type === "single") {
     return (
       <div>
+        <div style={{ marginBottom: 22 }}>
+          <StashPocket stash={trip.stash} updateStash={updateTripStash} defaultOpen label="Trip notes" />
+        </div>
         {trip.days.map((day, i) => (
-          <div key={day.id} style={{ display: "flex", gap: 12, marginBottom: 14, alignItems: "flex-start" }}>
+          <div
+            key={day.id}
+            draggable
+            onDragStart={(e) => e.dataTransfer.setData("text/plain", JSON.stringify({ type: "day", fromIndex: i }))}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => handleDrop(e, day.id, i)}
+            style={{ display: "flex", gap: 12, marginBottom: 14, alignItems: "flex-start" }}
+          >
             <div className="pm-mono" style={{ flexShrink: 0, marginTop: 14, width: 28, height: 28, borderRadius: "50%", background: "var(--forest)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11 }}>
               {i + 1}
             </div>
             <div style={{ flex: 1, background: "#FFFDF9", border: "1.5px solid rgba(46,43,38,0.12)", borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.25)" }}>
-              <DayCardBody day={day} expanded={expandedDayId === day.id} onToggle={() => setExpandedDayId(expandedDayId === day.id ? null : day.id)} updateDay={(fn) => updateDay(day.id, fn)} hideCity />
+              <DayCardBody day={day} expanded={expandedDayIds.has(day.id)} onToggle={() => toggleDay(day.id)} updateDay={(fn) => updateDay(day.id, fn)} hideCity hideStash onActivityDrop={handleDrop} />
             </div>
           </div>
         ))}
       </div>
     );
   }
+
   return (
-    <div style={{ position: "relative", paddingLeft: 30 }}>
-      <div style={{ position: "absolute", left: 13, top: 6, bottom: 6, borderLeft: "2px dashed rgba(42,32,25,0.25)" }} />
-      {trip.days.map((day, i) => (
-        <div key={day.id} style={{ position: "relative", marginBottom: 14 }}>
-          <div className="pm-mono" style={{ position: "absolute", left: -30, top: 14, width: 26, height: 26, borderRadius: "50%", background: "#3C2A1A", border: "2px solid var(--bg)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11 }}>
-            {i + 1}
-          </div>
-          <div style={{ background: "#FFFDF9", border: "1.5px solid rgba(46,43,38,0.12)", borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.25)" }}>
-            <DayCardBody day={day} expanded={expandedDayId === day.id} onToggle={() => setExpandedDayId(expandedDayId === day.id ? null : day.id)} updateDay={(fn) => updateDay(day.id, fn)} />
-          </div>
-        </div>
-      ))}
+    <div>
+      <AddSectionButton days={trip.days} onAdd={addSection} />
+      <div style={{ position: "relative", paddingLeft: 30, marginTop: 16 }}>
+        <div style={{ position: "absolute", left: 13, top: 6, bottom: 6, borderLeft: "2px dashed rgba(42,32,25,0.25)" }} />
+        {trip.days.map((day, i) => (
+          <React.Fragment key={day.id}>
+            {(trip.sections || []).filter((s) => s.beforeDayId === day.id).map((section) => (
+              <SectionHeader key={section.id} section={section} onUpdate={(fn) => updateSection(section.id, fn)} onRemove={() => removeSection(section.id)} />
+            ))}
+            <div
+              draggable
+              onDragStart={(e) => e.dataTransfer.setData("text/plain", JSON.stringify({ type: "day", fromIndex: i }))}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => handleDrop(e, day.id, i)}
+              style={{ position: "relative", marginBottom: 14 }}
+            >
+              <div className="pm-mono" style={{ position: "absolute", left: -30, top: 14, width: 26, height: 26, borderRadius: "50%", background: "#3C2A1A", border: "2px solid var(--bg)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11 }}>
+                {i + 1}
+              </div>
+              <div style={{ background: "#FFFDF9", border: "1.5px solid rgba(46,43,38,0.12)", borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.25)" }}>
+                <DayCardBody day={day} expanded={expandedDayIds.has(day.id)} onToggle={() => toggleDay(day.id)} updateDay={(fn) => updateDay(day.id, fn)} onActivityDrop={handleDrop} />
+              </div>
+            </div>
+          </React.Fragment>
+        ))}
+      </div>
     </div>
   );
 }
 
-function DayCardBody({ day, expanded, onToggle, updateDay, hideCity }) {
+function AddSectionButton({ days, onAdd }) {
+  const [open, setOpen] = useState(false);
+  const [label, setLabel] = useState("");
+  const [beforeDayId, setBeforeDayId] = useState(days[0] ? days[0].id : "");
+
+  if (!open) {
+    return (
+      <button className="pm-btn pm-btn-ghost" style={{ color: "var(--ink)", borderColor: "rgba(42,32,25,0.3)" }} onClick={() => setOpen(true)}>
+        <Plus size={12} /> add a place group
+      </button>
+    );
+  }
+  return (
+    <div style={{ background: "rgba(185,138,46,0.10)", border: "1px dashed var(--gold)", borderRadius: 10, padding: 12, display: "grid", gap: 8 }}>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <input className="pm-input" style={{ flex: "2 1 160px" }} value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Vancouver leg" />
+        <select className="pm-select" style={{ flex: "1 1 140px" }} value={beforeDayId} onChange={(e) => setBeforeDayId(e.target.value)}>
+          {days.map((d, i) => (<option key={d.id} value={d.id}>before day {i + 1}</option>))}
+        </select>
+      </div>
+      <div style={{ display: "flex", gap: 8 }}>
+        <button className="pm-btn pm-btn-solid" onClick={() => { if (label.trim()) { onAdd({ label: label.trim(), beforeDayId }); setLabel(""); setOpen(false); } }}>Add group</button>
+        <button className="pm-btn pm-btn-ghost" style={{ color: "var(--ink)", borderColor: "rgba(42,32,25,0.3)" }} onClick={() => setOpen(false)}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+function SectionHeader({ section, onUpdate, onRemove }) {
+  return (
+    <div style={{ marginBottom: 14, marginTop: 6 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+        <input
+          className="pm-display"
+          value={section.label}
+          onChange={(e) => onUpdate((s) => ({ ...s, label: e.target.value }))}
+          style={{ background: "transparent", border: "none", fontSize: 22, color: "var(--ink)", padding: 0, outline: "none", minWidth: 0, flex: 1 }}
+        />
+        <button onClick={onRemove} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)" }} aria-label="Remove group"><X size={14} /></button>
+      </div>
+      <StashPocket stash={section.stash} updateStash={(fn) => onUpdate((s) => ({ ...s, stash: fn(s.stash) }))} label="Group notes" />
+    </div>
+  );
+}
+
+function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, hideStash, onActivityDrop }) {
   function addActivity() { updateDay((d) => ({ ...d, activities: [...(d.activities || []), act("", "")] })); }
   function updateActivity(id, patch) { updateDay((d) => ({ ...d, activities: d.activities.map((a) => (a.id === id ? { ...a, ...patch } : a)) })); }
   function removeActivity(id) { updateDay((d) => ({ ...d, activities: d.activities.filter((a) => a.id !== id) })); }
@@ -927,12 +1119,15 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity }) {
   return (
     <div>
       <div onClick={onToggle} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", cursor: "pointer", gap: 12 }}>
-        <div style={{ minWidth: 0 }}>
-          <div className="pm-mono" style={{ fontSize: 11, color: "var(--ink-soft)" }}>{formatDate(day.date)}</div>
-          <div style={{ fontSize: 17, fontWeight: 700, marginTop: 2 }}>{hideCity ? (day.blurb || "Untitled day") : (day.city || "Untitled stop")}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+          <GripVertical size={14} style={{ color: "var(--ink-soft)", opacity: 0.35, cursor: "grab", flexShrink: 0 }} />
+          <div style={{ minWidth: 0 }}>
+            <div className="pm-mono" style={{ fontSize: 11, color: "var(--ink-soft)" }}>{formatDate(day.date)}</div>
+            <div style={{ fontSize: 17, fontWeight: 700, marginTop: 2 }}>{hideCity ? (day.blurb || "Untitled day") : (day.city || "Untitled stop")}</div>
+          </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-          {stashCount(day) > 0 && (
+          {!hideStash && stashCount(day) > 0 && (
             <span className="pm-mono" style={{ fontSize: 10, color: "var(--gold)", border: "1px solid var(--gold)", borderRadius: 10, padding: "2px 7px" }}>
               {stashCount(day)} tucked away
             </span>
@@ -944,71 +1139,82 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity }) {
       {expanded && (
         <div style={{ padding: "0 16px 18px", borderTop: "1px dashed rgba(46,43,38,0.18)" }}>
           <div style={{ marginTop: 14 }}>
-            <span className="pm-label">{hideCity ? "Day title" : "Where"}</span>
             <input className="pm-input" value={titleValue} onChange={(e) => updateDay((d) => ({ ...d, [titleField]: e.target.value }))} placeholder={hideCity ? "What's this day about" : "City or neighborhood"} />
           </div>
 
           <div style={{ marginTop: 16 }}>
             <div className="pm-mono" style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--ink-soft)", marginBottom: 8 }}>Activities</div>
-            {(day.activities || []).map((a, idx) => (
-              <div key={a.id} style={{ marginBottom: 10, background: "#FAF8F4", border: "1px solid rgba(46,43,38,0.14)", borderRadius: 8, padding: 10 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                  <span className="pm-mono" style={{ fontSize: 9, color: "var(--ink-soft)", opacity: 0.75 }}>STOP {idx + 1}</span>
-                  <button onClick={() => removeActivity(a.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)" }} aria-label="Remove activity"><X size={13} /></button>
+            {(day.activities || []).map((a, idx) => {
+              const tint = ACT_TINTS[idx % ACT_TINTS.length];
+              return (
+                <div
+                  key={a.id}
+                  draggable
+                  onDragStart={(e) => { e.stopPropagation(); e.dataTransfer.setData("text/plain", JSON.stringify({ type: "activity", dayId: day.id, activityId: a.id })); }}
+                  onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                  onDrop={(e) => { e.stopPropagation(); onActivityDrop && onActivityDrop(e, day.id, undefined, idx); }}
+                  style={{ marginBottom: 10, background: tint.bg, borderLeft: `3px solid ${tint.edge}`, border: "1px solid rgba(46,43,38,0.1)", borderRadius: 8, padding: 10, cursor: "grab" }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                    <span className="pm-mono" style={{ fontSize: 9, color: "var(--ink-soft)", opacity: 0.75, display: "flex", alignItems: "center", gap: 4 }}>
+                      <GripVertical size={11} style={{ opacity: 0.5 }} /> STOP {idx + 1}
+                    </span>
+                    <button onClick={() => removeActivity(a.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)" }} aria-label="Remove activity"><X size={13} /></button>
+                  </div>
+                  <div style={{ marginBottom: 6 }}>
+                    <span className="pm-label">Where</span>
+                    <input className="pm-input" style={{ fontSize: 13, padding: "6px 8px" }} value={a.where} onChange={(e) => updateActivity(a.id, { where: e.target.value })} placeholder="Place or stop" />
+                  </div>
+                  <div>
+                    <span className="pm-label">To do</span>
+                    <textarea className="pm-textarea" style={{ fontSize: 13, minHeight: 50 }} value={a.text} onChange={(e) => updateActivity(a.id, { text: e.target.value })} placeholder="What's the plan here" />
+                  </div>
                 </div>
-                <div style={{ marginBottom: 6 }}>
-                  <span className="pm-label">Where</span>
-                  <input className="pm-input" style={{ fontSize: 13, padding: "6px 8px" }} value={a.where} onChange={(e) => updateActivity(a.id, { where: e.target.value })} placeholder="Place or stop" />
-                </div>
-                <div>
-                  <span className="pm-label">To do</span>
-                  <textarea className="pm-textarea" style={{ fontSize: 13, minHeight: 50 }} value={a.text} onChange={(e) => updateActivity(a.id, { text: e.target.value })} placeholder="What's the plan here" />
-                </div>
-              </div>
-            ))}
+              );
+            })}
             {(day.activities || []).length === 0 && <div style={{ fontSize: 12, color: "var(--ink-soft)", fontStyle: "italic", marginBottom: 8 }}>No activities yet.</div>}
             <button className="pm-btn pm-btn-ghost" style={{ fontSize: 11, padding: "5px 10px", color: "var(--ink)", borderColor: "rgba(46,43,38,0.3)" }} onClick={addActivity}><Plus size={12} /> add an activity</button>
           </div>
 
-          <StashPocket day={day} updateDay={updateDay} />
+          {!hideStash && <StashPocket stash={day.stash} updateStash={(fn) => updateDay((d) => ({ ...d, stash: fn(d.stash) }))} />}
         </div>
       )}
     </div>
   );
 }
 
-function StashPocket({ day, updateDay }) {
-  const [open, setOpen] = useState(false);
+function StashPocket({ stash, updateStash, defaultOpen, label }) {
+  const [open, setOpen] = useState(!!defaultOpen);
 
-  function addHotel(item) { updateDay((d) => ({ ...d, stash: { ...d.stash, hotels: [...d.stash.hotels, { id: uid(), ...item }] } })); }
-  function addSpot(item) { updateDay((d) => ({ ...d, stash: { ...d.stash, spots: [...d.stash.spots, { id: uid(), ...item }] } })); }
-  function addCode(item) { updateDay((d) => ({ ...d, stash: { ...d.stash, codes: [...d.stash.codes, { id: uid(), ...item }] } })); }
-  function removeItem(kind, id) { updateDay((d) => ({ ...d, stash: { ...d.stash, [kind]: d.stash[kind].filter((x) => x.id !== id) } })); }
+  function addHotel(item) { updateStash((s) => ({ ...s, hotels: [...s.hotels, { id: uid(), ...item }] })); }
+  function addSpot(item) { updateStash((s) => ({ ...s, spots: [...s.spots, { id: uid(), ...item }] })); }
+  function addCode(item) { updateStash((s) => ({ ...s, codes: [...s.codes, { id: uid(), ...item }] })); }
+  function removeItem(kind, id) { updateStash((s) => ({ ...s, [kind]: s[kind].filter((x) => x.id !== id) })); }
 
   return (
     <div style={{ marginTop: 16 }}>
       <button onClick={() => setOpen(!open)} className="pm-mono" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)", fontSize: 11, display: "flex", alignItems: "center", gap: 6, padding: 0 }}>
-        <PenLine size={12} /> {open ? "tuck the pocket away" : "tucked-away details"}
+        <PenLine size={12} /> {open ? "tuck the pocket away" : (label || "tucked-away details")}
         <ChevronDown size={12} style={{ transform: open ? "rotate(180deg)" : "none" }} />
       </button>
 
       {open && (
         <div style={{ marginTop: 12, background: "rgba(185,138,46,0.10)", border: "1px dashed var(--gold)", borderRadius: 10, padding: 14, display: "grid", gap: 16 }}>
-          <StashSection title="Hotels considered" icon={BedDouble} items={day.stash.hotels}
+          <StashSection title="Hotels considered" icon={BedDouble} items={stash.hotels}
             renderItem={(item) => (<>
               <div style={{ fontWeight: 700, fontSize: 13 }}>{item.name}</div>
               {item.note && <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>{item.note}</div>}
               {item.link && <a href={item.link} target="_blank" rel="noreferrer" className="pm-mono" style={{ fontSize: 11, color: "var(--navy)" }}>{item.link}</a>}
             </>)}
             onAdd={addHotel} onRemove={(id) => removeItem("hotels", id)} fields={["name", "link", "note"]} />
-          <StashSection title="Spots to maybe check out" icon={Tag} items={day.stash.spots}
+          <StashSection title="Spots to maybe check out" icon={Tag} items={stash.spots}
             renderItem={(item) => (<>
               <div style={{ fontWeight: 700, fontSize: 13 }}>{item.name}</div>
               {item.note && <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>{item.note}</div>}
               {item.link && <a href={item.link} target="_blank" rel="noreferrer" className="pm-mono" style={{ fontSize: 11, color: "var(--navy)" }}>{item.link}</a>}
             </>)}
             onAdd={addSpot} onRemove={(id) => removeItem("spots", id)} fields={["name", "link", "note"]} />
-          <StashSection title="Booking codes" icon={KeyRound} items={day.stash.codes}
+          <StashSection title="Booking codes" icon={KeyRound} items={stash.codes}
             renderItem={(item) => (<>
               <span style={{ fontSize: 13 }}>{item.label}</span>
               <span className="pm-mono" style={{ fontSize: 12, marginLeft: 8, color: "var(--rust)" }}>{item.value}</span>
