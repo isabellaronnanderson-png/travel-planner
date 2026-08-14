@@ -44,12 +44,12 @@ function resizeImageFile(file, maxWidth = 640, quality = 0.85) {
         canvas.width = Math.round(img.width * scale);
         canvas.height = Math.round(img.height * scale);
         const ctx = canvas.getContext("2d");
-        try { ctx.filter = "saturate(1.05) contrast(1.05) brightness(1.01)"; } catch (e) { /* ignore */ }
+        try { ctx.filter = "saturate(1.15) contrast(1.12) brightness(1.01)"; } catch (e) { /* ignore */ }
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         try {
           const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
           const d = imgData.data;
-          const levels = 7;
+          const levels = 5;
           const step = 255 / (levels - 1);
           for (let i = 0; i < d.length; i += 4) {
             d[i] = Math.round(Math.round(d[i] / step) * step);
@@ -103,14 +103,21 @@ function migrateDay(day) {
 function migrateTrip(trip) {
   let t = { ...trip, days: (trip.days || []).map(migrateDay) };
   if (!t.sections) t = { ...t, sections: [] };
-  if (t.type === "single" && !t.stash) {
-    const merged = { hotels: [], spots: [], codes: [] };
-    t.days.forEach((d) => {
-      merged.hotels.push(...d.stash.hotels);
-      merged.spots.push(...d.stash.spots);
-      merged.codes.push(...d.stash.codes);
-    });
-    t = { ...t, stash: merged, days: t.days.map((d) => ({ ...d, stash: { hotels: [], spots: [], codes: [] } })) };
+  if (t.type === "single") {
+    const hasDayStash = t.days.some((d) => d.stash.hotels.length || d.stash.spots.length || d.stash.codes.length);
+    if (hasDayStash) {
+      const merged = {
+        hotels: [...((t.stash && t.stash.hotels) || [])],
+        spots: [...((t.stash && t.stash.spots) || [])],
+        codes: [...((t.stash && t.stash.codes) || [])],
+      };
+      t.days.forEach((d) => {
+        merged.hotels.push(...d.stash.hotels);
+        merged.spots.push(...d.stash.spots);
+        merged.codes.push(...d.stash.codes);
+      });
+      t = { ...t, stash: merged, days: t.days.map((d) => ({ ...d, stash: { hotels: [], spots: [], codes: [] } })) };
+    }
   }
   if (!t.stash) t = { ...t, stash: { hotels: [], spots: [], codes: [] } };
   return t;
@@ -652,7 +659,7 @@ function TripCard({ trip, index, onOpen, onDelete, flipping, onStartFlip }) {
           <X size={12} color="#fff" />
         </button>
 
-        <div style={{ position: "relative", height: 150, borderRadius: "2px 7px 3px 6px", overflow: "hidden", background: trip.coverImage ? `center / cover no-repeat url(${trip.coverImage})` : gradient, border: "2px solid rgba(0,0,0,0.65)", filter: "saturate(0.9) contrast(1.02)" }}>
+        <div style={{ position: "relative", height: 150, borderRadius: "2px 7px 3px 6px", overflow: "hidden", background: trip.coverImage ? `center / cover no-repeat url(${trip.coverImage})` : gradient, border: "2px solid rgba(0,0,0,0.65)", filter: "saturate(1.1) contrast(1.08)" }}>
           <ArchedTitle name={trip.name} index={index} />
         </div>
         <PostmarkStamp accent={stampAccent} index={index} topText={`★ ${formatDateShort(trip.days[0] ? trip.days[0].date : "")} ★`} />
