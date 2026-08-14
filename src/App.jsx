@@ -44,12 +44,12 @@ function resizeImageFile(file, maxWidth = 640, quality = 0.85) {
         canvas.width = Math.round(img.width * scale);
         canvas.height = Math.round(img.height * scale);
         const ctx = canvas.getContext("2d");
-        try { ctx.filter = "saturate(1.6) contrast(1.18) brightness(1.04)"; } catch (e) { /* ignore */ }
+        try { ctx.filter = "saturate(1.9) contrast(1.3) brightness(1.03)"; } catch (e) { /* ignore */ }
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         try {
           const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
           const d = imgData.data;
-          const levels = 7;
+          const levels = 5;
           const step = 255 / (levels - 1);
           for (let i = 0; i < d.length; i += 4) {
             d[i] = Math.round(Math.round(d[i] / step) * step);
@@ -294,17 +294,18 @@ function useGoogleMapsReady() {
 
 function thumbtackIconUrl(main) {
   const dark = shadeColor(main, -18);
+  const outline = shadeColor(main, -85);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="58" viewBox="0 0 36 58">
-    <path d="M18 28 L18 52" stroke="#1a1a1a" stroke-width="4" stroke-linecap="round"/>
+    <path d="M18 28 L18 52" stroke="${outline}" stroke-width="4" stroke-linecap="round"/>
     <path d="M18 28 L18 52" stroke="#D2D2D2" stroke-width="1.8" stroke-linecap="round"/>
-    <ellipse cx="18" cy="33" rx="15" ry="7" fill="${dark}" stroke="#1a1a1a" stroke-width="2"/>
-    <ellipse cx="18" cy="30" rx="15" ry="7" fill="${main}" stroke="#1a1a1a" stroke-width="2"/>
-    <ellipse cx="18" cy="29" rx="7" ry="2.5" fill="${main}" stroke="#1a1a1a" stroke-width="2"/>
+    <ellipse cx="18" cy="33" rx="15" ry="7" fill="${dark}" stroke="${outline}" stroke-width="2"/>
+    <ellipse cx="18" cy="30" rx="15" ry="7" fill="${main}" stroke="${outline}" stroke-width="2"/>
+    <ellipse cx="18" cy="29" rx="7" ry="2.5" fill="${main}" stroke="${outline}" stroke-width="2"/>
     <rect x="11" y="13" width="14" height="16" fill="${main}" stroke="none"/>
-    <line x1="11" y1="13" x2="11" y2="29" stroke="#1a1a1a" stroke-width="2"/>
-    <line x1="25" y1="13" x2="25" y2="29" stroke="#1a1a1a" stroke-width="2"/>
+    <line x1="11" y1="13" x2="11" y2="29" stroke="${outline}" stroke-width="2"/>
+    <line x1="25" y1="13" x2="25" y2="29" stroke="${outline}" stroke-width="2"/>
     <rect x="13" y="15" width="3" height="12" rx="1.5" fill="#fff" opacity="0.3"/>
-    <ellipse cx="18" cy="9" rx="11" ry="6" fill="${main}" stroke="#1a1a1a" stroke-width="2.2"/>
+    <ellipse cx="18" cy="9" rx="11" ry="6" fill="${main}" stroke="${outline}" stroke-width="2.2"/>
     <ellipse cx="14" cy="7" rx="3" ry="2" fill="#fff" opacity="0.45" transform="rotate(-15 14 7)"/>
   </svg>`;
   return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
@@ -364,7 +365,7 @@ export default function App() {
   return (
     <div className="pm-root">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Bungee+Shade&family=Rye&family=Nunito:ital,wght@0,400;0,600;0,700;1,600&family=Caveat:wght@600;700&family=Space+Mono:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Bungee&family=Rye&family=Nunito:ital,wght@0,400;0,600;0,700;1,600&family=Caveat:wght@600;700&family=Space+Mono:wght@400;700&display=swap');
 
         .pm-root {
           --forest: #2E5940;
@@ -374,23 +375,19 @@ export default function App() {
           --navy: #2C4F73;
           --navy-light: #3E6690;
           --gold: #B98A2E;
-          --cream: #F3ECDD;
+          --bg: #F8E29C;
           --ink: #2A2019;
           --ink-soft: #5C4E3F;
-          --wood: #5C4630;
-          --card-shadow: rgba(0,0,0,0.4);
+          --card-shadow: rgba(0,0,0,0.28);
           font-family: 'Nunito', sans-serif;
-          color: var(--cream);
+          color: var(--ink);
           min-height: 100vh;
           width: 100%;
           box-sizing: border-box;
-          background:
-            repeating-linear-gradient(3deg, rgba(0,0,0,0.06) 0px, rgba(0,0,0,0.06) 2px, transparent 2px, transparent 7px),
-            repeating-linear-gradient(3deg, rgba(255,255,255,0.035) 0px, transparent 3px, transparent 10px),
-            linear-gradient(100deg, var(--wood), #4E3A26 50%, var(--wood));
+          background: var(--bg);
         }
         .pm-root * { box-sizing: border-box; }
-        .pm-display { font-family: 'Bungee Shade', 'Rye', serif; }
+        .pm-display { font-family: 'Bungee', 'Rye', serif; }
         .pm-hand { font-family: 'Caveat', cursive; }
         .pm-mono { font-family: 'Space Mono', monospace; }
         .pm-btn {
@@ -398,9 +395,9 @@ export default function App() {
           font-weight: 700;
           font-size: 12px;
           letter-spacing: 0.01em;
-          border: 1.5px solid var(--cream);
+          border: 1.5px solid var(--ink);
           background: transparent;
-          color: var(--cream);
+          color: var(--ink);
           padding: 8px 14px;
           border-radius: 20px;
           cursor: pointer;
@@ -412,7 +409,7 @@ export default function App() {
         .pm-btn:hover { background: var(--rust); border-color: var(--rust); color: #fff; }
         .pm-btn-solid { background: var(--rust); border-color: var(--rust); color: #fff; }
         .pm-btn-solid:hover { background: var(--rust-light); border-color: var(--rust-light); color: #fff; }
-        .pm-btn-ghost { border-color: rgba(243,236,221,0.4); }
+        .pm-btn-ghost { border-color: rgba(42,32,25,0.35); }
         .pm-input, .pm-textarea, .pm-select {
           font-family: 'Nunito', sans-serif;
           font-size: 14px;
@@ -465,84 +462,47 @@ export default function App() {
   );
 }
 
-function PineTree({ size = 40 }) {
-  return (
-    <svg width={size} height={size * 1.3} viewBox="0 0 46 60">
-      <rect x="20" y="46" width="6" height="10" fill="#4A3210" />
-      <polygon points="23,4 6,26 40,26" fill="#3C7A54" stroke="#1a2e21" strokeWidth="1.5" />
-      <polygon points="23,16 4,36 42,36" fill="#336B49" stroke="#1a2e21" strokeWidth="1.5" />
-      <polygon points="23,28 2,50 44,50" fill="#2A5B3E" stroke="#1a2e21" strokeWidth="1.5" />
-    </svg>
-  );
-}
-
-function SuitcaseIcon({ size = 40 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 46 40">
-      <rect x="16" y="2" width="14" height="10" rx="3" fill="none" stroke="#1a1a1a" strokeWidth="2.2" />
-      <rect x="4" y="10" width="38" height="26" rx="4" fill="#C1591F" stroke="#1a1a1a" strokeWidth="2.2" />
-      <line x1="4" y1="20" x2="42" y2="20" stroke="#1a1a1a" strokeWidth="1.6" opacity="0.5" />
-      <rect x="9" y="16" width="6" height="8" fill="#1a1a1a" opacity="0.22" />
-      <rect x="31" y="16" width="6" height="8" fill="#1a1a1a" opacity="0.22" />
-    </svg>
-  );
-}
-
-function BicycleIcon({ size = 40 }) {
-  return (
-    <svg width={size} height={size * 0.72} viewBox="0 0 60 40">
-      <circle cx="12" cy="28" r="9" fill="none" stroke="#1a1a1a" strokeWidth="2.4" />
-      <circle cx="48" cy="28" r="9" fill="none" stroke="#1a1a1a" strokeWidth="2.4" />
-      <path d="M12 28 L24 12 L36 28 M24 12 L30 12 M36 28 L48 28 M20 20 L30 20" stroke="#2C5F9E" strokeWidth="2.4" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 function Masthead() {
   return (
-    <div style={{ background: "#FFFFFF", padding: "18px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, boxShadow: "0 2px 12px rgba(0,0,0,0.3)" }}>
-      <div className="pm-display" style={{ fontSize: 38, color: "#1a1a1a" }}>Postmark</div>
-      <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-        <SuitcaseIcon size={34} />
-        <PineTree size={30} />
-        <BicycleIcon size={34} />
-      </div>
+    <div style={{ textAlign: "center", padding: "30px 20px 16px" }}>
+      <div className="pm-display" style={{ fontSize: 40, color: "var(--ink)" }}>Postmark</div>
     </div>
   );
 }
 
 function Thumbtack({ color, style }) {
   const dark = shadeColor(color, -18);
+  const outline = shadeColor(color, -85);
   return (
     <svg width="34" height="55" viewBox="0 0 36 58" style={{ filter: "drop-shadow(0 5px 5px rgba(0,0,0,0.45))", ...style }}>
       <ellipse cx="18" cy="53" rx="4" ry="1.6" fill="rgba(0,0,0,0.3)" />
-      <path d="M18 28 L18 52" stroke="#1a1a1a" strokeWidth="4" strokeLinecap="round" />
+      <path d="M18 28 L18 52" stroke={outline} strokeWidth="4" strokeLinecap="round" />
       <path d="M18 28 L18 52" stroke="#D2D2D2" strokeWidth="1.8" strokeLinecap="round" />
-      <ellipse cx="18" cy="33" rx="15" ry="7" fill={dark} stroke="#1a1a1a" strokeWidth="2" />
-      <ellipse cx="18" cy="30" rx="15" ry="7" fill={color} stroke="#1a1a1a" strokeWidth="2" />
-      <ellipse cx="18" cy="29" rx="7" ry="2.5" fill={color} stroke="#1a1a1a" strokeWidth="2" />
+      <ellipse cx="18" cy="33" rx="15" ry="7" fill={dark} stroke={outline} strokeWidth="2" />
+      <ellipse cx="18" cy="30" rx="15" ry="7" fill={color} stroke={outline} strokeWidth="2" />
+      <ellipse cx="18" cy="29" rx="7" ry="2.5" fill={color} stroke={outline} strokeWidth="2" />
       <rect x="11" y="13" width="14" height="16" fill={color} stroke="none" />
-      <line x1="11" y1="13" x2="11" y2="29" stroke="#1a1a1a" strokeWidth="2" />
-      <line x1="25" y1="13" x2="25" y2="29" stroke="#1a1a1a" strokeWidth="2" />
+      <line x1="11" y1="13" x2="11" y2="29" stroke={outline} strokeWidth="2" />
+      <line x1="25" y1="13" x2="25" y2="29" stroke={outline} strokeWidth="2" />
       <rect x="13" y="15" width="3" height="12" rx="1.5" fill="#fff" opacity="0.3" />
-      <ellipse cx="18" cy="9" rx="11" ry="6" fill={color} stroke="#1a1a1a" strokeWidth="2.2" />
+      <ellipse cx="18" cy="9" rx="11" ry="6" fill={color} stroke={outline} strokeWidth="2.2" />
       <ellipse cx="14" cy="7" rx="3" ry="2" fill="#fff" opacity="0.45" transform="rotate(-15 14 7)" />
     </svg>
   );
 }
 
 const STAMP_PLACEMENTS = [
-  { top: 4, right: 6, rot: 6 },
-  { top: 10, right: -2, rot: -8 },
-  { top: 2, right: 14, rot: 9 },
-  { top: 12, right: 4, rot: -5 },
+  { top: 2, right: 3, rot: 6 },
+  { top: 6, right: -1, rot: -8 },
+  { top: 0, right: 8, rot: 9 },
+  { top: 7, right: 2, rot: -5 },
 ];
 
 function PostmarkStamp({ accent, index, topText }) {
   const pathId = `pm-stamp-path-${index}`;
   const placement = STAMP_PLACEMENTS[index % STAMP_PLACEMENTS.length];
   return (
-    <svg width="76" height="76" viewBox="0 0 100 100" style={{ position: "absolute", top: placement.top, right: placement.right, transform: `rotate(${placement.rot}deg)`, zIndex: 2 }}>
+    <svg width="52" height="52" viewBox="0 0 100 100" style={{ position: "absolute", top: placement.top, right: placement.right, transform: `rotate(${placement.rot}deg)`, zIndex: 2 }}>
       <defs>
         <path id={pathId} d="M 50,50 m -38,0 a 38,38 0 1,1 76,0 a 38,38 0 1,1 -76,0" />
       </defs>
@@ -580,9 +540,9 @@ function splitTwoLines(name) {
 
 function ArchedTitle({ name, index }) {
   const lines = splitTwoLines(name || "");
-  const singlePath = "M 15,150 Q 160,95 305,75";
-  const topPath = "M 20,110 Q 160,50 300,58";
-  const bottomPath = "M 15,178 Q 160,128 305,112";
+  const singlePath = "M 15,170 Q 160,115 305,95";
+  const topPath = "M 20,130 Q 160,70 300,78";
+  const bottomPath = "M 15,193 Q 160,143 305,127";
 
   if (lines.length === 1) {
     const fontSize = fontSizeForLen(name.length);
@@ -631,7 +591,7 @@ function TripCard({ trip, index, onOpen, onDelete, flipping, onStartFlip }) {
     <div className="pm-card-wrap" style={{ position: "relative" }}>
       <Thumbtack
         color={tone}
-        style={{ position: "absolute", top: -24, left: index % 2 === 0 ? 26 : "auto", right: index % 2 === 0 ? "auto" : 26, transform: `rotate(${pinRot}deg)`, zIndex: 3 }}
+        style={{ position: "absolute", top: -16, left: index % 2 === 0 ? 18 : "auto", right: index % 2 === 0 ? "auto" : 18, transform: `scale(0.72) rotate(${pinRot}deg)`, transformOrigin: "top center", zIndex: 3 }}
       />
       <div
         onClick={() => onStartFlip(trip.id)}
@@ -642,25 +602,25 @@ function TripCard({ trip, index, onOpen, onDelete, flipping, onStartFlip }) {
           border: "1px solid rgba(0,0,0,0.08)",
           borderRadius: "4px 10px 5px 9px",
           cursor: "pointer",
-          padding: 9,
-          boxShadow: "0 10px 20px var(--card-shadow)",
+          padding: 7,
+          boxShadow: "0 8px 16px var(--card-shadow)",
           transform: `rotate(${cardRot}deg)`,
         }}
       >
         <button
           onClick={(e) => { e.stopPropagation(); onDelete(trip.id); }}
-          style={{ position: "absolute", top: 15, left: 15, background: "rgba(0,0,0,0.5)", borderRadius: "50%", border: "none", width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 2 }}
+          style={{ position: "absolute", top: 12, left: 12, background: "rgba(0,0,0,0.5)", borderRadius: "50%", border: "none", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 2 }}
           aria-label="Delete trip"
         >
-          <X size={13} color="#fff" />
+          <X size={12} color="#fff" />
         </button>
 
-        <div style={{ position: "relative", height: 220, borderRadius: "2px 7px 3px 6px", overflow: "hidden", background: trip.coverImage ? `center / cover no-repeat url(${trip.coverImage})` : gradient, border: "2px solid rgba(0,0,0,0.65)" }}>
+        <div style={{ position: "relative", height: 150, borderRadius: "2px 7px 3px 6px", overflow: "hidden", background: trip.coverImage ? `center / cover no-repeat url(${trip.coverImage})` : gradient, border: "2px solid rgba(0,0,0,0.65)", filter: "saturate(1.5) contrast(1.15) brightness(1.02)" }}>
           <ArchedTitle name={trip.name} index={index} />
         </div>
         <PostmarkStamp accent={stampAccent} index={index} topText={`★ ${formatDateShort(trip.days[0] ? trip.days[0].date : "")} ★`} />
       </div>
-      <div className="pm-mono" style={{ fontSize: 11, color: "var(--cream)", opacity: 0.85, marginTop: 8, paddingLeft: 4 }}>
+      <div className="pm-mono" style={{ fontSize: 10, color: "var(--ink-soft)", marginTop: 6, paddingLeft: 3 }}>
         {trip.type === "single" && trip.location ? `based in ${trip.location} · ` : ""}{tripDateRange(trip)} · {trip.days.length}d
       </div>
     </div>
@@ -678,7 +638,7 @@ function HomeView({ trips, onOpen, onNew, onDelete }) {
 
   return (
     <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 44, paddingTop: 34 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 32, paddingTop: 20 }}>
         {trips.map((trip, i) => (
           <TripCard key={trip.id} trip={trip} index={i} onOpen={onOpen} onDelete={onDelete} flipping={flippingId === trip.id} onStartFlip={handleOpen} />
         ))}
@@ -686,16 +646,16 @@ function HomeView({ trips, onOpen, onNew, onDelete }) {
         <div
           onClick={onNew}
           style={{
-            border: "2px dashed rgba(243,236,221,0.4)",
+            border: "2px dashed rgba(42,32,25,0.3)",
             borderRadius: 14,
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
             gap: 8,
-            minHeight: 230,
+            minHeight: 160,
             cursor: "pointer",
-            color: "var(--cream)",
+            color: "var(--ink-soft)",
           }}
         >
           <Plus size={22} />
@@ -860,8 +820,8 @@ function TripView({ trip, onBack, updateTrip }) {
 
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 20 }}>
         <div>
-          <div className="pm-display" style={{ fontSize: 34, lineHeight: 1.1, color: "var(--cream)" }}>{trip.name}</div>
-          <div className="pm-mono" style={{ fontSize: 12, color: "var(--cream)", opacity: 0.8, marginTop: 6 }}>
+          <div className="pm-display" style={{ fontSize: 34, lineHeight: 1.1, color: "var(--ink)" }}>{trip.name}</div>
+          <div className="pm-mono" style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 6 }}>
             {trip.type === "single" && trip.location ? `based in ${trip.location} · ` : ""}{tripDateRange(trip)} · {trip.days.length} days
           </div>
         </div>
@@ -907,9 +867,9 @@ function TabPill({ active, onClick, icon: Icon, label }) {
       style={{
         display: "inline-flex", alignItems: "center", gap: 6,
         fontSize: 12, padding: "8px 14px", borderRadius: 20,
-        border: `1.5px solid ${active ? "var(--rust)" : "rgba(243,236,221,0.4)"}`,
-        background: active ? "var(--rust)" : "transparent",
-        color: "#fff",
+        border: `1.5px solid ${active ? "var(--forest)" : "rgba(42,32,25,0.3)"}`,
+        background: active ? "var(--forest)" : "transparent",
+        color: active ? "#fff" : "var(--ink)",
         cursor: "pointer",
       }}
     >
@@ -941,10 +901,10 @@ function ItineraryTab({ trip, expandedDayId, setExpandedDayId, updateDay }) {
   }
   return (
     <div style={{ position: "relative", paddingLeft: 30 }}>
-      <div style={{ position: "absolute", left: 13, top: 6, bottom: 6, borderLeft: "2px dashed rgba(243,236,221,0.35)" }} />
+      <div style={{ position: "absolute", left: 13, top: 6, bottom: 6, borderLeft: "2px dashed rgba(42,32,25,0.25)" }} />
       {trip.days.map((day, i) => (
         <div key={day.id} style={{ position: "relative", marginBottom: 14 }}>
-          <div className="pm-mono" style={{ position: "absolute", left: -30, top: 14, width: 26, height: 26, borderRadius: "50%", background: "var(--navy)", border: "2px solid var(--cream)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11 }}>
+          <div className="pm-mono" style={{ position: "absolute", left: -30, top: 14, width: 26, height: 26, borderRadius: "50%", background: "#3C2A1A", border: "2px solid var(--bg)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11 }}>
             {i + 1}
           </div>
           <div style={{ background: "#FFFDF9", border: "1.5px solid rgba(46,43,38,0.12)", borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.25)" }}>
@@ -1141,14 +1101,14 @@ function MapTab({ trip, updateTrip }) {
 
       <div style={{ display: "flex", gap: 24 }}>
         <div style={{ position: "relative", width: 140, flexShrink: 0, height: trackHeight }}>
-          <div style={{ position: "absolute", left: "50%", top: 0, bottom: 0, width: 2, background: "repeating-linear-gradient(to bottom, var(--navy-light) 0 6px, transparent 6px 12px)", transform: "translateX(-50%)" }} />
+          <div style={{ position: "absolute", left: "50%", top: 0, bottom: 0, width: 2, background: "repeating-linear-gradient(to bottom, rgba(60,42,26,0.4) 0 6px, transparent 6px 12px)", transform: "translateX(-50%)" }} />
           {days.map((day, i) => {
             const top = (i / Math.max(1, days.length - 1)) * (trackHeight - 20);
             const dayPins = pins.filter((p) => p.dayId === day.id);
             const side = i % 2 === 0 ? -1 : 1;
             return (
               <div key={day.id} style={{ position: "absolute", top, left: "50%", transform: "translate(-50%, -50%)" }}>
-                <div className="pm-mono" style={{ width: 20, height: 20, borderRadius: "50%", background: "#fff", border: "2px solid var(--navy-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: "var(--navy)" }}>
+                <div className="pm-mono" style={{ width: 20, height: 20, borderRadius: "50%", background: "#fff", border: "2px solid #3C2A1A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: "#3C2A1A" }}>
                   {i + 1}
                 </div>
                 {dayPins.map((pin, j) => {
@@ -1171,7 +1131,7 @@ function MapTab({ trip, updateTrip }) {
             <PinDetail pin={selectedPin} day={days.find((d) => d.id === selectedPin.dayId)} onClose={() => setSelectedPinId(null)} onRemove={() => removePin(selectedPin.id)} onEdit={() => setEditingPin(selectedPin)} />
           ) : (
             <div style={{ display: "grid", gap: 8 }}>
-              {pins.length === 0 && <div style={{ color: "var(--cream)", opacity: 0.7, fontSize: 13, fontStyle: "italic" }}>No pins here yet — add one, or pick a marker on the route.</div>}
+              {pins.length === 0 && <div style={{ color: "var(--ink-soft)", fontSize: 13, fontStyle: "italic" }}>No pins here yet — add one, or pick a marker on the route.</div>}
               {pins.map((pin) => {
                 const meta = CATEGORY_META[pin.category];
                 const Icon = meta.icon;
@@ -1196,7 +1156,7 @@ function MapTab({ trip, updateTrip }) {
 
 function FilterChip({ active, onClick, label, icon: Icon, color }) {
   return (
-    <button onClick={onClick} className="pm-mono" style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, padding: "6px 11px", borderRadius: 16, border: `1.5px solid ${active ? (color || "var(--cream)") : "rgba(243,236,221,0.4)"}`, background: active ? (color || "var(--forest)") : "transparent", color: "#fff", cursor: "pointer" }}>
+    <button onClick={onClick} className="pm-mono" style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, padding: "6px 11px", borderRadius: 16, border: `1.5px solid ${active ? (color || "var(--ink)") : "rgba(42,32,25,0.3)"}`, background: active ? (color || "var(--forest)") : "transparent", color: active ? "#fff" : "var(--ink)", cursor: "pointer" }}>
       {Icon && <Icon size={12} />} {label}
     </button>
   );
@@ -1373,7 +1333,7 @@ function GoogleMapTab({ trip, updateTrip }) {
 
   if (status === "needs-key") {
     return (
-      <div style={{ background: "#FAF8F4", border: "1.5px dashed rgba(243,236,221,0.4)", borderRadius: 12, padding: 24, maxWidth: 460, color: "var(--ink)" }}>
+      <div style={{ background: "#FAF8F4", border: "1.5px dashed rgba(42,32,25,0.3)", borderRadius: 12, padding: 24, maxWidth: 460, color: "var(--ink)" }}>
         <div className="pm-display" style={{ fontSize: 20, marginBottom: 8 }}>No API key found</div>
         <div style={{ fontSize: 13, color: "var(--ink-soft)", marginBottom: 14 }}>
           This looks for a Vercel environment variable named <code>VITE_GOOGLE_MAPS_API_KEY</code> (Project Settings → Environment Variables), then redeploy. It has to have the <code>VITE_</code> prefix or Vite won't include it in the site. You'll also want the <strong>Maps JavaScript API</strong> enabled on that key, alongside Places.
@@ -1403,7 +1363,7 @@ function GoogleMapTab({ trip, updateTrip }) {
         )}
       </div>
       <div className="pm-mono" style={{ fontSize: 11, opacity: 0.8, marginBottom: 8 }}>click anywhere on the map to drop a pin — pinch to zoom, two-finger swipe to pan</div>
-      <div ref={mapRef} style={{ width: "100%", height: 420, borderRadius: 12, border: "1.5px solid rgba(243,236,221,0.3)", background: "#FAF8F4" }} />
+      <div ref={mapRef} style={{ width: "100%", height: 420, borderRadius: 12, border: "1.5px solid rgba(42,32,25,0.25)", background: "#FAF8F4" }} />
       {status === "loading" && <div style={{ marginTop: 10, fontSize: 12, opacity: 0.8 }}>loading map…</div>}
 
       {pendingLatLng && (
