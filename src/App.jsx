@@ -44,12 +44,12 @@ function resizeImageFile(file, maxWidth = 640, quality = 0.85) {
         canvas.width = Math.round(img.width * scale);
         canvas.height = Math.round(img.height * scale);
         const ctx = canvas.getContext("2d");
-        try { ctx.filter = "saturate(1.15) contrast(1.12) brightness(1.01)"; } catch (e) { /* ignore */ }
+        try { ctx.filter = "saturate(0.7) contrast(1.0) brightness(1.12)"; } catch (e) { /* ignore */ }
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         try {
           const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
           const d = imgData.data;
-          const levels = 5;
+          const levels = 4;
           const step = 255 / (levels - 1);
           for (let i = 0; i < d.length; i += 4) {
             d[i] = Math.round(Math.round(d[i] / step) * step);
@@ -103,21 +103,24 @@ function migrateDay(day) {
 function migrateTrip(trip) {
   let t = { ...trip, days: (trip.days || []).map(migrateDay) };
   if (!t.sections) t = { ...t, sections: [] };
-  if (t.type === "single") {
-    const hasDayStash = t.days.some((d) => d.stash.hotels.length || d.stash.spots.length || d.stash.codes.length);
-    if (hasDayStash) {
-      const merged = {
-        hotels: [...((t.stash && t.stash.hotels) || [])],
-        spots: [...((t.stash && t.stash.spots) || [])],
-        codes: [...((t.stash && t.stash.codes) || [])],
-      };
-      t.days.forEach((d) => {
-        merged.hotels.push(...d.stash.hotels);
-        merged.spots.push(...d.stash.spots);
-        merged.codes.push(...d.stash.codes);
-      });
-      t = { ...t, stash: merged, days: t.days.map((d) => ({ ...d, stash: { hotels: [], spots: [], codes: [] } })) };
+  const hasDayStash = t.days.some((d) => d.stash.hotels.length || d.stash.spots.length || d.stash.codes.length);
+  if (hasDayStash) {
+    const merged = { hotels: [], spots: [], codes: [] };
+    t.days.forEach((d) => {
+      merged.hotels.push(...d.stash.hotels);
+      merged.spots.push(...d.stash.spots);
+      merged.codes.push(...d.stash.codes);
+    });
+    if (t.type === "single") {
+      merged.hotels.unshift(...((t.stash && t.stash.hotels) || []));
+      merged.spots.unshift(...((t.stash && t.stash.spots) || []));
+      merged.codes.unshift(...((t.stash && t.stash.codes) || []));
+      t = { ...t, stash: merged };
+    } else {
+      const defaultSection = { id: uid(), label: "Trip notes", beforeDayId: t.days[0].id, stash: merged };
+      t = { ...t, sections: [defaultSection, ...t.sections] };
     }
+    t = { ...t, days: t.days.map((d) => ({ ...d, stash: { hotels: [], spots: [], codes: [] } })) };
   }
   if (!t.stash) t = { ...t, stash: { hotels: [], spots: [], codes: [] } };
   return t;
@@ -379,10 +382,26 @@ export default function App() {
     setTrips((prev) => prev.map((t) => (t.id === tripId ? fn(t) : t)));
   }
 
-  function createTrip({ name, type, location, startDate, endDate }) {
+  function createTrip({ name, type, location, startDate, endDate, legs }) {
     const n = Math.max(1, Math.min(90, daysBetween(startDate, endDate)));
     const days = [];
     for (let i = 0; i < n; i++) days.push(makeDay(addDays(startDate, i), type === "single" ? location : "", ""));
+
+    let sections = [];
+    if (type === "multi" && legs && legs.length > 1) {
+      const base = Math.floor(n / legs.length);
+      let remainder = n % legs.length;
+      let idx = 0;
+      legs.forEach((legName) => {
+        const count = base + (remainder > 0 ? 1 : 0);
+        if (remainder > 0) remainder--;
+        if (legName.trim() && days[idx]) {
+          sections.push({ id: uid(), label: legName.trim(), beforeDayId: days[idx].id, stash: { hotels: [], spots: [], codes: [] } });
+        }
+        idx += count;
+      });
+    }
+
     const trip = {
       id: uid(),
       name: name || "Untitled trip",
@@ -392,7 +411,7 @@ export default function App() {
       days,
       pins: [],
       coverImage: null,
-      sections: [],
+      sections,
       stash: { hotels: [], spots: [], codes: [] },
     };
     setTrips((prev) => [...(prev || []), trip]);
@@ -450,9 +469,9 @@ export default function App() {
           gap: 6px;
           transition: background 0.15s ease, color 0.15s ease;
         }
-        .pm-btn:hover { background: var(--rust); border-color: var(--rust); color: #fff; }
-        .pm-btn-solid { background: var(--rust); border-color: var(--rust); color: #fff; }
-        .pm-btn-solid:hover { background: var(--rust-light); border-color: var(--rust-light); color: #fff; }
+        .pm-btn:hover { background: var(--forest); border-color: var(--forest); color: #fff; }
+        .pm-btn-solid { background: var(--forest); border-color: var(--forest); color: #fff; }
+        .pm-btn-solid:hover { background: var(--forest-light); border-color: var(--forest-light); color: #fff; }
         .pm-btn-ghost { border-color: rgba(42,32,25,0.35); }
         .pm-input, .pm-textarea, .pm-select {
           font-family: 'Nunito', sans-serif;
@@ -464,7 +483,7 @@ export default function App() {
           color: var(--ink);
           width: 100%;
         }
-        .pm-input:focus, .pm-textarea:focus, .pm-select:focus { outline: none; border-color: var(--rust); }
+        .pm-input:focus, .pm-textarea:focus, .pm-select:focus { outline: none; border-color: var(--forest); }
         .pm-textarea { resize: vertical; min-height: 52px; font-size: 14px; line-height: 1.5; }
         .pm-label { font-family: 'Space Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); display: block; margin-bottom: 4px; }
         .pm-card-wrap { perspective: 1200px; }
@@ -659,7 +678,7 @@ function TripCard({ trip, index, onOpen, onDelete, flipping, onStartFlip }) {
           <X size={12} color="#fff" />
         </button>
 
-        <div style={{ position: "relative", height: 150, borderRadius: "2px 7px 3px 6px", overflow: "hidden", background: trip.coverImage ? `center / cover no-repeat url(${trip.coverImage})` : gradient, border: "2px solid rgba(0,0,0,0.65)", filter: "saturate(1.1) contrast(1.08)" }}>
+        <div style={{ position: "relative", height: 150, borderRadius: "2px 7px 3px 6px", overflow: "hidden", background: trip.coverImage ? `center / cover no-repeat url(${trip.coverImage})` : gradient, border: "2px solid rgba(0,0,0,0.65)", filter: "saturate(0.75) contrast(1.0) brightness(1.08)" }}>
           <ArchedTitle name={trip.name} index={index} />
         </div>
         <PostmarkStamp accent={stampAccent} index={index} topText={`★ ${formatDateShort(trip.days[0] ? trip.days[0].date : "")} ★`} />
@@ -737,12 +756,17 @@ function NewTripModal({ onCancel, onCreate }) {
   const today = new Date().toISOString().slice(0, 10);
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
+  const [legs, setLegs] = useState(["", ""]);
   const invalid = endDate < startDate;
   const n = invalid ? 0 : daysBetween(startDate, endDate);
 
+  function updateLeg(i, value) { setLegs((prev) => prev.map((l, idx) => (idx === i ? value : l))); }
+  function addLegField() { setLegs((prev) => [...prev, ""]); }
+  function removeLegField(i) { setLegs((prev) => prev.filter((_, idx) => idx !== i)); }
+
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20 }}>
-      <div style={{ background: "#FFFDF9", borderRadius: 14, padding: 24, width: "100%", maxWidth: 380, boxShadow: "0 10px 30px rgba(0,0,0,0.4)" }}>
+      <div style={{ background: "#FFFDF9", borderRadius: 14, padding: 24, width: "100%", maxWidth: 380, boxShadow: "0 10px 30px rgba(0,0,0,0.4)", maxHeight: "90vh", overflowY: "auto" }}>
         <div className="pm-display" style={{ fontSize: 26, marginBottom: 16, color: "var(--ink)" }}>New trip</div>
 
         <TripTypeFields type={type} setType={setType} location={location} setLocation={setLocation} />
@@ -765,9 +789,28 @@ function NewTripModal({ onCancel, onCreate }) {
         <div className="pm-mono" style={{ fontSize: 11, color: invalid ? "var(--rust)" : "var(--ink-soft)", marginBottom: 18 }}>
           {invalid ? "end date needs to be after the start date" : `${n} day${n === 1 ? "" : "s"}`}
         </div>
+
+        {type === "multi" && (
+          <div style={{ marginBottom: 18 }}>
+            <span className="pm-label">Legs (optional)</span>
+            <div className="pm-mono" style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 8 }}>Days split evenly across legs — drag to fine-tune later.</div>
+            <div style={{ display: "grid", gap: 6 }}>
+              {legs.map((leg, i) => (
+                <div key={i} style={{ display: "flex", gap: 6 }}>
+                  <input className="pm-input" style={{ fontSize: 13 }} value={leg} onChange={(e) => updateLeg(i, e.target.value)} placeholder={`Leg ${i + 1}, e.g. Vancouver`} />
+                  {legs.length > 1 && (
+                    <button onClick={() => removeLegField(i)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)" }} aria-label="Remove leg"><X size={14} /></button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <button className="pm-btn pm-btn-ghost" style={{ marginTop: 8, fontSize: 11, padding: "5px 10px", color: "var(--ink)", borderColor: "rgba(46,43,38,0.3)" }} onClick={addLegField}><Plus size={12} /> add a leg</button>
+          </div>
+        )}
+
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
           <button className="pm-btn pm-btn-ghost" style={{ color: "var(--ink)", borderColor: "rgba(46,43,38,0.3)" }} onClick={onCancel}>Cancel</button>
-          <button className="pm-btn pm-btn-solid" disabled={invalid} onClick={() => !invalid && onCreate({ name, type, location, startDate, endDate })}>Create trip</button>
+          <button className="pm-btn pm-btn-solid" disabled={invalid} onClick={() => !invalid && onCreate({ name, type, location, startDate, endDate, legs: legs.filter((l) => l.trim()) })}>Create trip</button>
         </div>
       </div>
     </div>
@@ -1010,6 +1053,7 @@ function ItineraryTab({ trip, expandedDayIds, toggleDay, updateDay, reorderDays,
     if (!data) return;
     if (data.type === "day" && typeof dayIndex === "number") reorderDays(data.fromIndex, dayIndex);
     else if (data.type === "activity" && dayId) moveActivity(data.dayId, data.activityId, dayId, activityIndex);
+    else if (data.type === "section" && dayId) updateSection(data.sectionId, (s) => ({ ...s, beforeDayId: dayId }));
   }
 
   if (trip.type === "single") {
@@ -1031,7 +1075,7 @@ function ItineraryTab({ trip, expandedDayIds, toggleDay, updateDay, reorderDays,
               {i + 1}
             </div>
             <div style={{ flex: 1, background: "#FFFDF9", border: "1.5px solid rgba(46,43,38,0.12)", borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.25)" }}>
-              <DayCardBody day={day} expanded={expandedDayIds.has(day.id)} onToggle={() => toggleDay(day.id)} updateDay={(fn) => updateDay(day.id, fn)} hideCity hideStash onActivityDrop={handleDrop} />
+              <DayCardBody day={day} expanded={expandedDayIds.has(day.id)} onToggle={() => toggleDay(day.id)} updateDay={(fn) => updateDay(day.id, fn)} hideCity onActivityDrop={handleDrop} />
             </div>
           </div>
         ))}
@@ -1039,9 +1083,12 @@ function ItineraryTab({ trip, expandedDayIds, toggleDay, updateDay, reorderDays,
     );
   }
 
+  const dayIds = new Set(trip.days.map((d) => d.id));
+  const trailingSections = (trip.sections || []).filter((s) => !s.beforeDayId || !dayIds.has(s.beforeDayId));
+
   return (
     <div>
-      <AddSectionButton days={trip.days} onAdd={addSection} />
+      <AddSectionButton firstDayId={trip.days[0] ? trip.days[0].id : null} onAdd={addSection} />
       <div style={{ position: "relative", paddingLeft: 30, marginTop: 16 }}>
         <div style={{ position: "absolute", left: 13, top: 6, bottom: 6, borderLeft: "2px dashed rgba(42,32,25,0.25)" }} />
         {trip.days.map((day, i) => (
@@ -1065,15 +1112,26 @@ function ItineraryTab({ trip, expandedDayIds, toggleDay, updateDay, reorderDays,
             </div>
           </React.Fragment>
         ))}
+        {trailingSections.map((section) => (
+          <SectionHeader key={section.id} section={section} onUpdate={(fn) => updateSection(section.id, fn)} onRemove={() => removeSection(section.id)} />
+        ))}
+        <div
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            const data = parseDragData(e);
+            if (data && data.type === "section") updateSection(data.sectionId, (s) => ({ ...s, beforeDayId: null }));
+          }}
+          style={{ height: 28 }}
+        />
       </div>
     </div>
   );
 }
 
-function AddSectionButton({ days, onAdd }) {
+function AddSectionButton({ firstDayId, onAdd }) {
   const [open, setOpen] = useState(false);
   const [label, setLabel] = useState("");
-  const [beforeDayId, setBeforeDayId] = useState(days[0] ? days[0].id : "");
 
   if (!open) {
     return (
@@ -1084,14 +1142,10 @@ function AddSectionButton({ days, onAdd }) {
   }
   return (
     <div style={{ background: "rgba(185,138,46,0.10)", border: "1px dashed var(--gold)", borderRadius: 10, padding: 12, display: "grid", gap: 8 }}>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <input className="pm-input" style={{ flex: "2 1 160px" }} value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Vancouver leg" />
-        <select className="pm-select" style={{ flex: "1 1 140px" }} value={beforeDayId} onChange={(e) => setBeforeDayId(e.target.value)}>
-          {days.map((d, i) => (<option key={d.id} value={d.id}>before day {i + 1}</option>))}
-        </select>
-      </div>
+      <input className="pm-input" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Vancouver leg" autoFocus />
+      <div className="pm-mono" style={{ fontSize: 11, color: "var(--ink-soft)" }}>Drag it into place once it's added.</div>
       <div style={{ display: "flex", gap: 8 }}>
-        <button className="pm-btn pm-btn-solid" onClick={() => { if (label.trim()) { onAdd({ label: label.trim(), beforeDayId }); setLabel(""); setOpen(false); } }}>Add group</button>
+        <button className="pm-btn pm-btn-solid" onClick={() => { if (label.trim()) { onAdd({ label: label.trim(), beforeDayId: firstDayId }); setLabel(""); setOpen(false); } }}>Add group</button>
         <button className="pm-btn pm-btn-ghost" style={{ color: "var(--ink)", borderColor: "rgba(42,32,25,0.3)" }} onClick={() => setOpen(false)}>Cancel</button>
       </div>
     </div>
@@ -1102,12 +1156,17 @@ function SectionHeader({ section, onUpdate, onRemove }) {
   return (
     <div style={{ marginBottom: 14, marginTop: 6 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-        <input
-          className="pm-display"
-          value={section.label}
-          onChange={(e) => onUpdate((s) => ({ ...s, label: e.target.value }))}
-          style={{ background: "transparent", border: "none", fontSize: 22, color: "var(--ink)", padding: 0, outline: "none", minWidth: 0, flex: 1 }}
-        />
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 0 }}>
+          <span draggable onDragStart={(e) => e.dataTransfer.setData("text/plain", JSON.stringify({ type: "section", sectionId: section.id }))} style={{ display: "flex", cursor: "grab", flexShrink: 0 }}>
+            <GripVertical size={16} style={{ color: "var(--ink-soft)", opacity: 0.4 }} />
+          </span>
+          <input
+            className="pm-display"
+            value={section.label}
+            onChange={(e) => onUpdate((s) => ({ ...s, label: e.target.value }))}
+            style={{ background: "transparent", border: "none", fontSize: 22, color: "var(--ink)", padding: 0, outline: "none", minWidth: 0, flex: 1 }}
+          />
+        </div>
         <button onClick={onRemove} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)" }} aria-label="Remove group"><X size={14} /></button>
       </div>
       <StashPocket stash={section.stash} updateStash={(fn) => onUpdate((s) => ({ ...s, stash: fn(s.stash) }))} label="Group notes" />
@@ -1115,7 +1174,7 @@ function SectionHeader({ section, onUpdate, onRemove }) {
   );
 }
 
-function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, hideStash, onActivityDrop }) {
+function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, onActivityDrop }) {
   function addActivity() { updateDay((d) => ({ ...d, activities: [...(d.activities || []), act("", "")] })); }
   function updateActivity(id, patch) { updateDay((d) => ({ ...d, activities: d.activities.map((a) => (a.id === id ? { ...a, ...patch } : a)) })); }
   function removeActivity(id) { updateDay((d) => ({ ...d, activities: d.activities.filter((a) => a.id !== id) })); }
@@ -1134,11 +1193,6 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, hideStash, 
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-          {!hideStash && stashCount(day) > 0 && (
-            <span className="pm-mono" style={{ fontSize: 10, color: "var(--gold)", border: "1px solid var(--gold)", borderRadius: 10, padding: "2px 7px" }}>
-              {stashCount(day)} tucked away
-            </span>
-          )}
           <ChevronDown size={16} style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.15s ease" }} />
         </div>
       </div>
@@ -1182,8 +1236,6 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, hideStash, 
             {(day.activities || []).length === 0 && <div style={{ fontSize: 12, color: "var(--ink-soft)", fontStyle: "italic", marginBottom: 8 }}>No activities yet.</div>}
             <button className="pm-btn pm-btn-ghost" style={{ fontSize: 11, padding: "5px 10px", color: "var(--ink)", borderColor: "rgba(46,43,38,0.3)" }} onClick={addActivity}><Plus size={12} /> add an activity</button>
           </div>
-
-          {!hideStash && <StashPocket stash={day.stash} updateStash={(fn) => updateDay((d) => ({ ...d, stash: fn(d.stash) }))} />}
         </div>
       )}
     </div>
