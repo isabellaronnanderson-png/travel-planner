@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
-  MapPin, Plus, X, ChevronDown, ArrowLeft, Search, GripVertical,
+  MapPin, Plus, X, ChevronDown, ChevronUp, ArrowLeft, Search, GripVertical,
   Map as MapIcon, BookOpen, Tag, KeyRound, BedDouble, Utensils,
   Link2, Compass, Trash2, PenLine, Globe, Camera,
 } from "lucide-react";
@@ -44,7 +44,7 @@ function resizeImageFile(file, maxWidth = 640, quality = 0.85) {
         canvas.width = Math.round(img.width * scale);
         canvas.height = Math.round(img.height * scale);
         const ctx = canvas.getContext("2d");
-        try { ctx.filter = "saturate(0.7) contrast(1.0) brightness(1.12)"; } catch (e) { /* ignore */ }
+        try { ctx.filter = "saturate(0.8) contrast(1.0) brightness(1.1) sepia(0.18)"; } catch (e) { /* ignore */ }
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         try {
           const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -678,7 +678,7 @@ function TripCard({ trip, index, onOpen, onDelete, flipping, onStartFlip }) {
           <X size={12} color="#fff" />
         </button>
 
-        <div style={{ position: "relative", height: 150, borderRadius: "2px 7px 3px 6px", overflow: "hidden", background: trip.coverImage ? `center / cover no-repeat url(${trip.coverImage})` : gradient, border: "2px solid rgba(0,0,0,0.65)", filter: "saturate(0.75) contrast(1.0) brightness(1.08)" }}>
+        <div style={{ position: "relative", height: 150, borderRadius: "2px 7px 3px 6px", overflow: "hidden", background: trip.coverImage ? `center / cover no-repeat url(${trip.coverImage})` : gradient, border: "2px solid rgba(0,0,0,0.65)", filter: "saturate(0.85) contrast(1.0) brightness(1.06) sepia(0.15)" }}>
           <ArchedTitle name={trip.name} index={index} />
         </div>
         <PostmarkStamp accent={stampAccent} index={index} topText={`★ ${formatDateShort(trip.days[0] ? trip.days[0].date : "")} ★`} />
@@ -1046,14 +1046,45 @@ function parseDragData(e) {
   try { return JSON.parse(e.dataTransfer.getData("text/plain")); } catch (err) { return null; }
 }
 
+function InsertLine() {
+  return <div style={{ height: 3, background: "var(--forest)", borderRadius: 2, margin: "0 0 8px" }} />;
+}
+
+function dragPosition(e) {
+  const rect = e.currentTarget.getBoundingClientRect();
+  return (e.clientY - rect.top) < rect.height / 2 ? "before" : "after";
+}
+
 function ItineraryTab({ trip, expandedDayIds, toggleDay, updateDay, reorderDays, moveActivity, updateTripStash, addSection, updateSection, removeSection }) {
+  const [dayDrag, setDayDrag] = useState(null);
+  const [dayOver, setDayOver] = useState(null);
+
   function handleDrop(e, dayId, dayIndex, activityIndex) {
     e.preventDefault();
     const data = parseDragData(e);
+    const pos = dayOver && dayOver.index === dayIndex ? dayOver.position : "before";
+    setDayOver(null);
+    setDayDrag(null);
     if (!data) return;
-    if (data.type === "day" && typeof dayIndex === "number") reorderDays(data.fromIndex, dayIndex);
-    else if (data.type === "activity" && dayId) moveActivity(data.dayId, data.activityId, dayId, activityIndex);
-    else if (data.type === "section" && dayId) updateSection(data.sectionId, (s) => ({ ...s, beforeDayId: dayId }));
+    if (data.type === "day" && typeof dayIndex === "number") {
+      let toIndex = pos === "after" ? dayIndex + 1 : dayIndex;
+      if (data.fromIndex < toIndex) toIndex -= 1;
+      reorderDays(data.fromIndex, toIndex);
+    } else if (data.type === "activity" && dayId) {
+      moveActivity(data.dayId, data.activityId, dayId, activityIndex);
+    } else if (data.type === "section" && dayId) {
+      updateSection(data.sectionId, (s) => ({ ...s, beforeDayId: dayId }));
+    }
+  }
+
+  function dayRowProps(i) {
+    return {
+      draggable: true,
+      onDragStart: (e) => { setDayDrag(i); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", JSON.stringify({ type: "day", fromIndex: i })); },
+      onDragEnd: () => { setDayDrag(null); setDayOver(null); },
+      onDragOver: (e) => { e.preventDefault(); setDayOver({ index: i, position: dragPosition(e) }); },
+      onDrop: (e) => handleDrop(e, trip.days[i].id, i),
+    };
   }
 
   if (trip.type === "single") {
@@ -1063,21 +1094,25 @@ function ItineraryTab({ trip, expandedDayIds, toggleDay, updateDay, reorderDays,
           <StashPocket stash={trip.stash} updateStash={updateTripStash} defaultOpen label="Trip notes" />
         </div>
         {trip.days.map((day, i) => (
-          <div
-            key={day.id}
-            draggable
-            onDragStart={(e) => e.dataTransfer.setData("text/plain", JSON.stringify({ type: "day", fromIndex: i }))}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => handleDrop(e, day.id, i)}
-            style={{ display: "flex", gap: 12, marginBottom: 14, alignItems: "flex-start" }}
-          >
-            <div className="pm-mono" style={{ flexShrink: 0, marginTop: 14, width: 28, height: 28, borderRadius: "50%", background: "var(--forest)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11 }}>
-              {i + 1}
+          <React.Fragment key={day.id}>
+            {dayOver && dayOver.index === i && dayOver.position === "before" && <InsertLine />}
+            <div
+              {...dayRowProps(i)}
+              style={{ display: "flex", gap: 12, marginBottom: 14, alignItems: "flex-start", opacity: dayDrag === i ? 0.4 : 1 }}
+            >
+              <div className="pm-mono" style={{ flexShrink: 0, marginTop: 14, width: 28, height: 28, borderRadius: "50%", background: "var(--forest)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11 }}>
+                {i + 1}
+              </div>
+              <div style={{ flex: 1, background: "#FFFDF9", border: "1.5px solid rgba(46,43,38,0.12)", borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.25)" }}>
+                <DayCardBody
+                  day={day} expanded={expandedDayIds.has(day.id)} onToggle={() => toggleDay(day.id)} updateDay={(fn) => updateDay(day.id, fn)} hideCity onActivityDrop={handleDrop}
+                  canMoveUp={i > 0} canMoveDown={i < trip.days.length - 1}
+                  onMoveUp={() => reorderDays(i, i - 1)} onMoveDown={() => reorderDays(i, i + 1)}
+                />
+              </div>
             </div>
-            <div style={{ flex: 1, background: "#FFFDF9", border: "1.5px solid rgba(46,43,38,0.12)", borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.25)" }}>
-              <DayCardBody day={day} expanded={expandedDayIds.has(day.id)} onToggle={() => toggleDay(day.id)} updateDay={(fn) => updateDay(day.id, fn)} hideCity onActivityDrop={handleDrop} />
-            </div>
-          </div>
+            {dayOver && dayOver.index === i && dayOver.position === "after" && <InsertLine />}
+          </React.Fragment>
         ))}
       </div>
     );
@@ -1096,20 +1131,23 @@ function ItineraryTab({ trip, expandedDayIds, toggleDay, updateDay, reorderDays,
             {(trip.sections || []).filter((s) => s.beforeDayId === day.id).map((section) => (
               <SectionHeader key={section.id} section={section} onUpdate={(fn) => updateSection(section.id, fn)} onRemove={() => removeSection(section.id)} />
             ))}
+            {dayOver && dayOver.index === i && dayOver.position === "before" && <div style={{ marginLeft: -30 }}><InsertLine /></div>}
             <div
-              draggable
-              onDragStart={(e) => e.dataTransfer.setData("text/plain", JSON.stringify({ type: "day", fromIndex: i }))}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => handleDrop(e, day.id, i)}
-              style={{ position: "relative", marginBottom: 14 }}
+              {...dayRowProps(i)}
+              style={{ position: "relative", marginBottom: 14, opacity: dayDrag === i ? 0.4 : 1 }}
             >
               <div className="pm-mono" style={{ position: "absolute", left: -30, top: 14, width: 26, height: 26, borderRadius: "50%", background: "#3C2A1A", border: "2px solid var(--bg)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11 }}>
                 {i + 1}
               </div>
               <div style={{ background: "#FFFDF9", border: "1.5px solid rgba(46,43,38,0.12)", borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.25)" }}>
-                <DayCardBody day={day} expanded={expandedDayIds.has(day.id)} onToggle={() => toggleDay(day.id)} updateDay={(fn) => updateDay(day.id, fn)} onActivityDrop={handleDrop} />
+                <DayCardBody
+                  day={day} expanded={expandedDayIds.has(day.id)} onToggle={() => toggleDay(day.id)} updateDay={(fn) => updateDay(day.id, fn)} onActivityDrop={handleDrop}
+                  canMoveUp={i > 0} canMoveDown={i < trip.days.length - 1}
+                  onMoveUp={() => reorderDays(i, i - 1)} onMoveDown={() => reorderDays(i, i + 1)}
+                />
               </div>
             </div>
+            {dayOver && dayOver.index === i && dayOver.position === "after" && <div style={{ marginLeft: -30 }}><InsertLine /></div>}
           </React.Fragment>
         ))}
         {trailingSections.map((section) => (
@@ -1153,11 +1191,17 @@ function AddSectionButton({ firstDayId, onAdd }) {
 }
 
 function SectionHeader({ section, onUpdate, onRemove }) {
+  const [dragging, setDragging] = useState(false);
   return (
-    <div style={{ marginBottom: 14, marginTop: 6 }}>
+    <div style={{ marginBottom: 14, marginTop: 6, opacity: dragging ? 0.4 : 1 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 0 }}>
-          <span draggable onDragStart={(e) => e.dataTransfer.setData("text/plain", JSON.stringify({ type: "section", sectionId: section.id }))} style={{ display: "flex", cursor: "grab", flexShrink: 0 }}>
+          <span
+            draggable
+            onDragStart={(e) => { setDragging(true); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", JSON.stringify({ type: "section", sectionId: section.id })); }}
+            onDragEnd={() => setDragging(false)}
+            style={{ display: "flex", cursor: "grab", flexShrink: 0 }}
+          >
             <GripVertical size={16} style={{ color: "var(--ink-soft)", opacity: 0.4 }} />
           </span>
           <input
@@ -1174,10 +1218,29 @@ function SectionHeader({ section, onUpdate, onRemove }) {
   );
 }
 
-function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, onActivityDrop }) {
+function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, onActivityDrop, canMoveUp, canMoveDown, onMoveUp, onMoveDown }) {
+  const [actDrag, setActDrag] = useState(null);
+  const [actOver, setActOver] = useState(null);
+
   function addActivity() { updateDay((d) => ({ ...d, activities: [...(d.activities || []), act("", "")] })); }
   function updateActivity(id, patch) { updateDay((d) => ({ ...d, activities: d.activities.map((a) => (a.id === id ? { ...a, ...patch } : a)) })); }
   function removeActivity(id) { updateDay((d) => ({ ...d, activities: d.activities.filter((a) => a.id !== id) })); }
+  function moveActivityUp(idx) {
+    if (idx === 0) return;
+    updateDay((d) => {
+      const activities = [...d.activities];
+      [activities[idx - 1], activities[idx]] = [activities[idx], activities[idx - 1]];
+      return { ...d, activities };
+    });
+  }
+  function moveActivityDown(idx) {
+    updateDay((d) => {
+      if (idx >= d.activities.length - 1) return d;
+      const activities = [...d.activities];
+      [activities[idx], activities[idx + 1]] = [activities[idx + 1], activities[idx]];
+      return { ...d, activities };
+    });
+  }
 
   const titleValue = hideCity ? day.blurb : day.city;
   const titleField = hideCity ? "blurb" : "city";
@@ -1187,6 +1250,12 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, onActivityD
       <div onClick={onToggle} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", cursor: "pointer", gap: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
           <GripVertical size={14} style={{ color: "var(--ink-soft)", opacity: 0.35, cursor: "grab", flexShrink: 0 }} />
+          {(onMoveUp || onMoveDown) && (
+            <div style={{ display: "flex", flexDirection: "column", flexShrink: 0 }}>
+              <button onClick={(e) => { e.stopPropagation(); onMoveUp && onMoveUp(); }} disabled={!canMoveUp} style={{ background: "none", border: "none", cursor: canMoveUp ? "pointer" : "default", opacity: canMoveUp ? 0.6 : 0.2, padding: 0, lineHeight: 0 }} aria-label="Move day up"><ChevronUp size={13} /></button>
+              <button onClick={(e) => { e.stopPropagation(); onMoveDown && onMoveDown(); }} disabled={!canMoveDown} style={{ background: "none", border: "none", cursor: canMoveDown ? "pointer" : "default", opacity: canMoveDown ? 0.6 : 0.2, padding: 0, lineHeight: 0 }} aria-label="Move day down"><ChevronDown size={13} /></button>
+            </div>
+          )}
           <div style={{ minWidth: 0 }}>
             <div className="pm-mono" style={{ fontSize: 11, color: "var(--ink-soft)" }}>{formatDate(day.date)}</div>
             <div style={{ fontSize: 17, fontWeight: 700, marginTop: 2 }}>{hideCity ? (day.blurb || "Untitled day") : (day.city || "Untitled stop")}</div>
@@ -1207,30 +1276,45 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, onActivityD
             <div className="pm-mono" style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--ink-soft)", marginBottom: 8 }}>Activities</div>
             {(day.activities || []).map((a, idx) => {
               const tint = ACT_TINTS[idx % ACT_TINTS.length];
+              const total = day.activities.length;
               return (
-                <div
-                  key={a.id}
-                  draggable
-                  onDragStart={(e) => { e.stopPropagation(); e.dataTransfer.setData("text/plain", JSON.stringify({ type: "activity", dayId: day.id, activityId: a.id })); }}
-                  onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                  onDrop={(e) => { e.stopPropagation(); onActivityDrop && onActivityDrop(e, day.id, undefined, idx); }}
-                  style={{ marginBottom: 10, background: tint.bg, borderLeft: `3px solid ${tint.edge}`, border: "1px solid rgba(46,43,38,0.1)", borderRadius: 8, padding: 10, cursor: "grab" }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                    <span className="pm-mono" style={{ fontSize: 9, color: "var(--ink-soft)", opacity: 0.75, display: "flex", alignItems: "center", gap: 4 }}>
-                      <GripVertical size={11} style={{ opacity: 0.5 }} /> STOP {idx + 1}
-                    </span>
-                    <button onClick={() => removeActivity(a.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)" }} aria-label="Remove activity"><X size={13} /></button>
+                <React.Fragment key={a.id}>
+                  {actOver && actOver.index === idx && actOver.position === "before" && <InsertLine />}
+                  <div
+                    draggable
+                    onDragStart={(e) => { e.stopPropagation(); setActDrag(idx); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", JSON.stringify({ type: "activity", dayId: day.id, activityId: a.id })); }}
+                    onDragEnd={(e) => { e.stopPropagation(); setActDrag(null); setActOver(null); }}
+                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setActOver({ index: idx, position: dragPosition(e) }); }}
+                    onDrop={(e) => {
+                      e.stopPropagation();
+                      const pos = actOver && actOver.index === idx ? actOver.position : "before";
+                      let toIndex = pos === "after" ? idx + 1 : idx;
+                      setActOver(null); setActDrag(null);
+                      onActivityDrop && onActivityDrop(e, day.id, undefined, toIndex);
+                    }}
+                    style={{ marginBottom: 10, background: tint.bg, borderLeft: `3px solid ${tint.edge}`, border: "1px solid rgba(46,43,38,0.1)", borderRadius: 8, padding: 10, cursor: "grab", opacity: actDrag === idx ? 0.4 : 1 }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                      <span className="pm-mono" style={{ fontSize: 9, color: "var(--ink-soft)", opacity: 0.75, display: "flex", alignItems: "center", gap: 4 }}>
+                        <GripVertical size={11} style={{ opacity: 0.5 }} /> STOP {idx + 1}
+                      </span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <button onClick={() => moveActivityUp(idx)} disabled={idx === 0} style={{ background: "none", border: "none", cursor: idx === 0 ? "default" : "pointer", opacity: idx === 0 ? 0.25 : 0.6, padding: 0, lineHeight: 0 }} aria-label="Move stop up"><ChevronUp size={13} /></button>
+                        <button onClick={() => moveActivityDown(idx)} disabled={idx === total - 1} style={{ background: "none", border: "none", cursor: idx === total - 1 ? "default" : "pointer", opacity: idx === total - 1 ? 0.25 : 0.6, padding: 0, lineHeight: 0 }} aria-label="Move stop down"><ChevronDown size={13} /></button>
+                        <button onClick={() => removeActivity(a.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)" }} aria-label="Remove activity"><X size={13} /></button>
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: 6 }}>
+                      <span className="pm-label">Where</span>
+                      <input className="pm-input" style={{ fontSize: 13, padding: "6px 8px" }} value={a.where} onChange={(e) => updateActivity(a.id, { where: e.target.value })} placeholder="Place or stop" />
+                    </div>
+                    <div>
+                      <span className="pm-label">To do</span>
+                      <textarea className="pm-textarea" style={{ fontSize: 13, minHeight: 50 }} value={a.text} onChange={(e) => updateActivity(a.id, { text: e.target.value })} placeholder="What's the plan here" />
+                    </div>
                   </div>
-                  <div style={{ marginBottom: 6 }}>
-                    <span className="pm-label">Where</span>
-                    <input className="pm-input" style={{ fontSize: 13, padding: "6px 8px" }} value={a.where} onChange={(e) => updateActivity(a.id, { where: e.target.value })} placeholder="Place or stop" />
-                  </div>
-                  <div>
-                    <span className="pm-label">To do</span>
-                    <textarea className="pm-textarea" style={{ fontSize: 13, minHeight: 50 }} value={a.text} onChange={(e) => updateActivity(a.id, { text: e.target.value })} placeholder="What's the plan here" />
-                  </div>
-                </div>
+                  {actOver && actOver.index === idx && actOver.position === "after" && <InsertLine />}
+                </React.Fragment>
               );
             })}
             {(day.activities || []).length === 0 && <div style={{ fontSize: 12, color: "var(--ink-soft)", fontStyle: "italic", marginBottom: 8 }}>No activities yet.</div>}
