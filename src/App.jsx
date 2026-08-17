@@ -4,6 +4,9 @@ import {
   Map as MapIcon, BookOpen, Tag, KeyRound, BedDouble, Utensils,
   Link2, Compass, Trash2, PenLine, Globe, Camera,
 } from "lucide-react";
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 const STORAGE_KEY = "roadbook:trips";
 const GMAPS_KEY_STORAGE = "postmark:gmaps-key";
@@ -1046,45 +1049,33 @@ function parseDragData(e) {
   try { return JSON.parse(e.dataTransfer.getData("text/plain")); } catch (err) { return null; }
 }
 
-function InsertLine() {
-  return <div style={{ height: 3, background: "var(--forest)", borderRadius: 2, margin: "0 0 8px" }} />;
-}
-
-function dragPosition(e) {
-  const rect = e.currentTarget.getBoundingClientRect();
-  return (e.clientY - rect.top) < rect.height / 2 ? "before" : "after";
+function SortableDay({ id, children }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : "auto",
+    position: "relative",
+  };
+  return <div ref={setNodeRef} style={style}>{children({ handleProps: { ...attributes, ...listeners } })}</div>;
 }
 
 function ItineraryTab({ trip, expandedDayIds, toggleDay, updateDay, reorderDays, moveActivity, updateTripStash, addSection, updateSection, removeSection }) {
-  const [dayDrag, setDayDrag] = useState(null);
-  const [dayOver, setDayOver] = useState(null);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
-  function handleDrop(e, dayId, dayIndex, activityIndex) {
-    e.preventDefault();
-    const data = parseDragData(e);
-    const pos = dayOver && dayOver.index === dayIndex ? dayOver.position : "before";
-    setDayOver(null);
-    setDayDrag(null);
-    if (!data) return;
-    if (data.type === "day" && typeof dayIndex === "number") {
-      let toIndex = pos === "after" ? dayIndex + 1 : dayIndex;
-      if (data.fromIndex < toIndex) toIndex -= 1;
-      reorderDays(data.fromIndex, toIndex);
-    } else if (data.type === "activity" && dayId) {
-      moveActivity(data.dayId, data.activityId, dayId, activityIndex);
-    } else if (data.type === "section" && dayId) {
-      updateSection(data.sectionId, (s) => ({ ...s, beforeDayId: dayId }));
-    }
+  function handleDayDragEnd(event) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = trip.days.findIndex((d) => d.id === active.id);
+    const newIndex = trip.days.findIndex((d) => d.id === over.id);
+    if (oldIndex !== -1 && newIndex !== -1) reorderDays(oldIndex, newIndex);
   }
 
-  function dayRowProps(i) {
-    return {
-      draggable: true,
-      onDragStart: (e) => { setDayDrag(i); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", JSON.stringify({ type: "day", fromIndex: i })); },
-      onDragEnd: () => { setDayDrag(null); setDayOver(null); },
-      onDragOver: (e) => { e.preventDefault(); setDayOver({ index: i, position: dragPosition(e) }); },
-      onDrop: (e) => handleDrop(e, trip.days[i].id, i),
-    };
+  function handleSectionDrop(e, dayId) {
+    e.preventDefault();
+    const data = parseDragData(e);
+    if (data && data.type === "section" && dayId) updateSection(data.sectionId, (s) => ({ ...s, beforeDayId: dayId }));
   }
 
   if (trip.type === "single") {
@@ -1093,27 +1084,29 @@ function ItineraryTab({ trip, expandedDayIds, toggleDay, updateDay, reorderDays,
         <div style={{ marginBottom: 22 }}>
           <StashPocket stash={trip.stash} updateStash={updateTripStash} defaultOpen label="Trip notes" />
         </div>
-        {trip.days.map((day, i) => (
-          <React.Fragment key={day.id}>
-            {dayOver && dayOver.index === i && dayOver.position === "before" && <InsertLine />}
-            <div
-              {...dayRowProps(i)}
-              style={{ display: "flex", gap: 12, marginBottom: 14, alignItems: "flex-start", opacity: dayDrag === i ? 0.4 : 1 }}
-            >
-              <div className="pm-mono" style={{ flexShrink: 0, marginTop: 14, width: 28, height: 28, borderRadius: "50%", background: "var(--forest)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11 }}>
-                {i + 1}
-              </div>
-              <div style={{ flex: 1, background: "#FFFDF9", border: "1.5px solid rgba(46,43,38,0.12)", borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.25)" }}>
-                <DayCardBody
-                  day={day} expanded={expandedDayIds.has(day.id)} onToggle={() => toggleDay(day.id)} updateDay={(fn) => updateDay(day.id, fn)} hideCity onActivityDrop={handleDrop}
-                  canMoveUp={i > 0} canMoveDown={i < trip.days.length - 1}
-                  onMoveUp={() => reorderDays(i, i - 1)} onMoveDown={() => reorderDays(i, i + 1)}
-                />
-              </div>
-            </div>
-            {dayOver && dayOver.index === i && dayOver.position === "after" && <InsertLine />}
-          </React.Fragment>
-        ))}
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDayDragEnd}>
+          <SortableContext items={trip.days.map((d) => d.id)} strategy={verticalListSortingStrategy}>
+            {trip.days.map((day, i) => (
+              <SortableDay key={day.id} id={day.id}>
+                {({ handleProps }) => (
+                  <div style={{ display: "flex", gap: 12, marginBottom: 14, alignItems: "flex-start" }}>
+                    <div className="pm-mono" style={{ flexShrink: 0, marginTop: 14, width: 28, height: 28, borderRadius: "50%", background: "var(--forest)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11 }}>
+                      {i + 1}
+                    </div>
+                    <div style={{ flex: 1, background: "#FFFDF9", border: "1.5px solid rgba(46,43,38,0.12)", borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.25)" }}>
+                      <DayCardBody
+                        day={day} expanded={expandedDayIds.has(day.id)} onToggle={() => toggleDay(day.id)} updateDay={(fn) => updateDay(day.id, fn)} hideCity
+                        dragHandleProps={handleProps}
+                        canMoveUp={i > 0} canMoveDown={i < trip.days.length - 1}
+                        onMoveUp={() => reorderDays(i, i - 1)} onMoveDown={() => reorderDays(i, i + 1)}
+                      />
+                    </div>
+                  </div>
+                )}
+              </SortableDay>
+            ))}
+          </SortableContext>
+        </DndContext>
       </div>
     );
   }
@@ -1126,30 +1119,38 @@ function ItineraryTab({ trip, expandedDayIds, toggleDay, updateDay, reorderDays,
       <AddSectionButton firstDayId={trip.days[0] ? trip.days[0].id : null} onAdd={addSection} />
       <div style={{ position: "relative", paddingLeft: 30, marginTop: 16 }}>
         <div style={{ position: "absolute", left: 13, top: 6, bottom: 6, borderLeft: "2px dashed rgba(42,32,25,0.25)" }} />
-        {trip.days.map((day, i) => (
-          <React.Fragment key={day.id}>
-            {(trip.sections || []).filter((s) => s.beforeDayId === day.id).map((section) => (
-              <SectionHeader key={section.id} section={section} onUpdate={(fn) => updateSection(section.id, fn)} onRemove={() => removeSection(section.id)} />
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDayDragEnd}>
+          <SortableContext items={trip.days.map((d) => d.id)} strategy={verticalListSortingStrategy}>
+            {trip.days.map((day, i) => (
+              <React.Fragment key={day.id}>
+                {(trip.sections || []).filter((s) => s.beforeDayId === day.id).map((section) => (
+                  <SectionHeader key={section.id} section={section} onUpdate={(fn) => updateSection(section.id, fn)} onRemove={() => removeSection(section.id)} />
+                ))}
+                <SortableDay id={day.id}>
+                  {({ handleProps }) => (
+                    <div
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => handleSectionDrop(e, day.id)}
+                      style={{ marginBottom: 14 }}
+                    >
+                      <div className="pm-mono" style={{ position: "absolute", left: -30, top: 14, width: 26, height: 26, borderRadius: "50%", background: "#3C2A1A", border: "2px solid var(--bg)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11 }}>
+                        {i + 1}
+                      </div>
+                      <div style={{ background: "#FFFDF9", border: "1.5px solid rgba(46,43,38,0.12)", borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.25)" }}>
+                        <DayCardBody
+                          day={day} expanded={expandedDayIds.has(day.id)} onToggle={() => toggleDay(day.id)} updateDay={(fn) => updateDay(day.id, fn)}
+                          dragHandleProps={handleProps}
+                          canMoveUp={i > 0} canMoveDown={i < trip.days.length - 1}
+                          onMoveUp={() => reorderDays(i, i - 1)} onMoveDown={() => reorderDays(i, i + 1)}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </SortableDay>
+              </React.Fragment>
             ))}
-            {dayOver && dayOver.index === i && dayOver.position === "before" && <div style={{ marginLeft: -30 }}><InsertLine /></div>}
-            <div
-              {...dayRowProps(i)}
-              style={{ position: "relative", marginBottom: 14, opacity: dayDrag === i ? 0.4 : 1 }}
-            >
-              <div className="pm-mono" style={{ position: "absolute", left: -30, top: 14, width: 26, height: 26, borderRadius: "50%", background: "#3C2A1A", border: "2px solid var(--bg)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11 }}>
-                {i + 1}
-              </div>
-              <div style={{ background: "#FFFDF9", border: "1.5px solid rgba(46,43,38,0.12)", borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.25)" }}>
-                <DayCardBody
-                  day={day} expanded={expandedDayIds.has(day.id)} onToggle={() => toggleDay(day.id)} updateDay={(fn) => updateDay(day.id, fn)} onActivityDrop={handleDrop}
-                  canMoveUp={i > 0} canMoveDown={i < trip.days.length - 1}
-                  onMoveUp={() => reorderDays(i, i - 1)} onMoveDown={() => reorderDays(i, i + 1)}
-                />
-              </div>
-            </div>
-            {dayOver && dayOver.index === i && dayOver.position === "after" && <div style={{ marginLeft: -30 }}><InsertLine /></div>}
-          </React.Fragment>
-        ))}
+          </SortableContext>
+        </DndContext>
         {trailingSections.map((section) => (
           <SectionHeader key={section.id} section={section} onUpdate={(fn) => updateSection(section.id, fn)} onRemove={() => removeSection(section.id)} />
         ))}
@@ -1218,27 +1219,41 @@ function SectionHeader({ section, onUpdate, onRemove }) {
   );
 }
 
-function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, onActivityDrop, canMoveUp, canMoveDown, onMoveUp, onMoveDown }) {
-  const [actDrag, setActDrag] = useState(null);
-  const [actOver, setActOver] = useState(null);
+function SortableActivity({ id, children }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : "auto",
+  };
+  return <div ref={setNodeRef} style={style}>{children({ handleProps: { ...attributes, ...listeners } })}</div>;
+}
+
+function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, dragHandleProps, canMoveUp, canMoveDown, onMoveUp, onMoveDown }) {
+  const actSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
   function addActivity() { updateDay((d) => ({ ...d, activities: [...(d.activities || []), act("", "")] })); }
   function updateActivity(id, patch) { updateDay((d) => ({ ...d, activities: d.activities.map((a) => (a.id === id ? { ...a, ...patch } : a)) })); }
   function removeActivity(id) { updateDay((d) => ({ ...d, activities: d.activities.filter((a) => a.id !== id) })); }
   function moveActivityUp(idx) {
     if (idx === 0) return;
-    updateDay((d) => {
-      const activities = [...d.activities];
-      [activities[idx - 1], activities[idx]] = [activities[idx], activities[idx - 1]];
-      return { ...d, activities };
-    });
+    updateDay((d) => ({ ...d, activities: arrayMove(d.activities, idx, idx - 1) }));
   }
   function moveActivityDown(idx) {
     updateDay((d) => {
       if (idx >= d.activities.length - 1) return d;
-      const activities = [...d.activities];
-      [activities[idx], activities[idx + 1]] = [activities[idx + 1], activities[idx]];
-      return { ...d, activities };
+      return { ...d, activities: arrayMove(d.activities, idx, idx + 1) };
+    });
+  }
+  function handleActivityDragEnd(event) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    updateDay((d) => {
+      const oldIndex = d.activities.findIndex((a) => a.id === active.id);
+      const newIndex = d.activities.findIndex((a) => a.id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return d;
+      return { ...d, activities: arrayMove(d.activities, oldIndex, newIndex) };
     });
   }
 
@@ -1249,7 +1264,9 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, onActivityD
     <div>
       <div onClick={onToggle} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", cursor: "pointer", gap: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-          <GripVertical size={14} style={{ color: "var(--ink-soft)", opacity: 0.35, cursor: "grab", flexShrink: 0 }} />
+          <span {...(dragHandleProps || {})} onClick={(e) => e.stopPropagation()} style={{ display: "flex", cursor: "grab", touchAction: "none", flexShrink: 0 }}>
+            <GripVertical size={14} style={{ color: "var(--ink-soft)", opacity: 0.35 }} />
+          </span>
           {(onMoveUp || onMoveDown) && (
             <div style={{ display: "flex", flexDirection: "column", flexShrink: 0 }}>
               <button onClick={(e) => { e.stopPropagation(); onMoveUp && onMoveUp(); }} disabled={!canMoveUp} style={{ background: "none", border: "none", cursor: canMoveUp ? "pointer" : "default", opacity: canMoveUp ? 0.6 : 0.2, padding: 0, lineHeight: 0 }} aria-label="Move day up"><ChevronUp size={13} /></button>
@@ -1274,49 +1291,40 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, onActivityD
 
           <div style={{ marginTop: 16 }}>
             <div className="pm-mono" style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--ink-soft)", marginBottom: 8 }}>Activities</div>
-            {(day.activities || []).map((a, idx) => {
-              const tint = ACT_TINTS[idx % ACT_TINTS.length];
-              const total = day.activities.length;
-              return (
-                <React.Fragment key={a.id}>
-                  {actOver && actOver.index === idx && actOver.position === "before" && <InsertLine />}
-                  <div
-                    draggable
-                    onDragStart={(e) => { e.stopPropagation(); setActDrag(idx); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", JSON.stringify({ type: "activity", dayId: day.id, activityId: a.id })); }}
-                    onDragEnd={(e) => { e.stopPropagation(); setActDrag(null); setActOver(null); }}
-                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setActOver({ index: idx, position: dragPosition(e) }); }}
-                    onDrop={(e) => {
-                      e.stopPropagation();
-                      const pos = actOver && actOver.index === idx ? actOver.position : "before";
-                      let toIndex = pos === "after" ? idx + 1 : idx;
-                      setActOver(null); setActDrag(null);
-                      onActivityDrop && onActivityDrop(e, day.id, undefined, toIndex);
-                    }}
-                    style={{ marginBottom: 10, background: tint.bg, borderLeft: `3px solid ${tint.edge}`, border: "1px solid rgba(46,43,38,0.1)", borderRadius: 8, padding: 10, cursor: "grab", opacity: actDrag === idx ? 0.4 : 1 }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                      <span className="pm-mono" style={{ fontSize: 9, color: "var(--ink-soft)", opacity: 0.75, display: "flex", alignItems: "center", gap: 4 }}>
-                        <GripVertical size={11} style={{ opacity: 0.5 }} /> STOP {idx + 1}
-                      </span>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <button onClick={() => moveActivityUp(idx)} disabled={idx === 0} style={{ background: "none", border: "none", cursor: idx === 0 ? "default" : "pointer", opacity: idx === 0 ? 0.25 : 0.6, padding: 0, lineHeight: 0 }} aria-label="Move stop up"><ChevronUp size={13} /></button>
-                        <button onClick={() => moveActivityDown(idx)} disabled={idx === total - 1} style={{ background: "none", border: "none", cursor: idx === total - 1 ? "default" : "pointer", opacity: idx === total - 1 ? 0.25 : 0.6, padding: 0, lineHeight: 0 }} aria-label="Move stop down"><ChevronDown size={13} /></button>
-                        <button onClick={() => removeActivity(a.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)" }} aria-label="Remove activity"><X size={13} /></button>
-                      </div>
-                    </div>
-                    <div style={{ marginBottom: 6 }}>
-                      <span className="pm-label">Where</span>
-                      <input className="pm-input" style={{ fontSize: 13, padding: "6px 8px" }} value={a.where} onChange={(e) => updateActivity(a.id, { where: e.target.value })} placeholder="Place or stop" />
-                    </div>
-                    <div>
-                      <span className="pm-label">To do</span>
-                      <textarea className="pm-textarea" style={{ fontSize: 13, minHeight: 50 }} value={a.text} onChange={(e) => updateActivity(a.id, { text: e.target.value })} placeholder="What's the plan here" />
-                    </div>
-                  </div>
-                  {actOver && actOver.index === idx && actOver.position === "after" && <InsertLine />}
-                </React.Fragment>
-              );
-            })}
+            <DndContext sensors={actSensors} collisionDetection={closestCenter} onDragEnd={handleActivityDragEnd}>
+              <SortableContext items={(day.activities || []).map((a) => a.id)} strategy={verticalListSortingStrategy}>
+                {(day.activities || []).map((a, idx) => {
+                  const tint = ACT_TINTS[idx % ACT_TINTS.length];
+                  const total = day.activities.length;
+                  return (
+                    <SortableActivity key={a.id} id={a.id}>
+                      {({ handleProps }) => (
+                        <div style={{ marginBottom: 10, background: tint.bg, borderLeft: `3px solid ${tint.edge}`, border: "1px solid rgba(46,43,38,0.1)", borderRadius: 8, padding: 10 }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                            <span {...handleProps} className="pm-mono" style={{ fontSize: 9, color: "var(--ink-soft)", opacity: 0.75, display: "flex", alignItems: "center", gap: 4, cursor: "grab", touchAction: "none" }}>
+                              <GripVertical size={11} style={{ opacity: 0.5 }} /> STOP {idx + 1}
+                            </span>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <button onClick={() => moveActivityUp(idx)} disabled={idx === 0} style={{ background: "none", border: "none", cursor: idx === 0 ? "default" : "pointer", opacity: idx === 0 ? 0.25 : 0.6, padding: 0, lineHeight: 0 }} aria-label="Move stop up"><ChevronUp size={13} /></button>
+                              <button onClick={() => moveActivityDown(idx)} disabled={idx === total - 1} style={{ background: "none", border: "none", cursor: idx === total - 1 ? "default" : "pointer", opacity: idx === total - 1 ? 0.25 : 0.6, padding: 0, lineHeight: 0 }} aria-label="Move stop down"><ChevronDown size={13} /></button>
+                              <button onClick={() => removeActivity(a.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)" }} aria-label="Remove activity"><X size={13} /></button>
+                            </div>
+                          </div>
+                          <div style={{ marginBottom: 6 }}>
+                            <span className="pm-label">Where</span>
+                            <input className="pm-input" style={{ fontSize: 13, padding: "6px 8px" }} value={a.where} onChange={(e) => updateActivity(a.id, { where: e.target.value })} placeholder="Place or stop" />
+                          </div>
+                          <div>
+                            <span className="pm-label">To do</span>
+                            <textarea className="pm-textarea" style={{ fontSize: 13, minHeight: 50 }} value={a.text} onChange={(e) => updateActivity(a.id, { text: e.target.value })} placeholder="What's the plan here" />
+                          </div>
+                        </div>
+                      )}
+                    </SortableActivity>
+                  );
+                })}
+              </SortableContext>
+            </DndContext>
             {(day.activities || []).length === 0 && <div style={{ fontSize: 12, color: "var(--ink-soft)", fontStyle: "italic", marginBottom: 8 }}>No activities yet.</div>}
             <button className="pm-btn pm-btn-ghost" style={{ fontSize: 11, padding: "5px 10px", color: "var(--ink)", borderColor: "rgba(46,43,38,0.3)" }} onClick={addActivity}><Plus size={12} /> add an activity</button>
           </div>
