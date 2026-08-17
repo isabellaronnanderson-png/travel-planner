@@ -14,9 +14,14 @@ const GMAPS_KEY_STORAGE = "postmark:gmaps-key";
 const uid = () => Math.random().toString(36).slice(2, 10);
 
 function addDays(dateStr, n) {
-  const d = new Date(dateStr + "T00:00:00");
-  d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0, 10);
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  date.setUTCDate(date.getUTCDate() + n);
+  return date.toISOString().slice(0, 10);
+}
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 function daysBetween(startStr, endStr) {
   const a = new Date(startStr + "T00:00:00");
@@ -756,7 +761,7 @@ function NewTripModal({ onCancel, onCreate }) {
   const [name, setName] = useState("");
   const [type, setType] = useState("multi");
   const [location, setLocation] = useState("");
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayStr();
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
   const [legs, setLegs] = useState(["", ""]);
@@ -824,7 +829,7 @@ function EditTripModal({ trip, onCancel, onSave, onSetCover }) {
   const [name, setName] = useState(trip.name);
   const [type, setType] = useState(trip.type);
   const [location, setLocation] = useState(trip.location || "");
-  const [startDate, setStartDate] = useState(trip.days[0] ? trip.days[0].date : new Date().toISOString().slice(0, 10));
+  const [startDate, setStartDate] = useState(trip.days[0] ? trip.days[0].date : todayStr());
   const [endDate, setEndDate] = useState(trip.days[trip.days.length - 1] ? trip.days[trip.days.length - 1].date : startDate);
   const fileInputRef = useRef(null);
   const invalid = endDate < startDate;
@@ -943,6 +948,15 @@ function TripView({ trip, onBack, updateTrip }) {
     });
   }
 
+  function addDay() {
+    updateTrip((t) => {
+      const last = t.days[t.days.length - 1];
+      const newDate = last ? addDays(last.date, 1) : todayStr();
+      const newDay = makeDay(newDate, t.type === "single" ? t.location : "", "");
+      return { ...t, days: [...t.days, newDay] };
+    });
+  }
+
   function updateTripStash(fn) {
     updateTrip((t) => ({ ...t, stash: fn(t.stash) }));
   }
@@ -989,6 +1003,7 @@ function TripView({ trip, onBack, updateTrip }) {
           addSection={addSection}
           updateSection={updateSection}
           removeSection={removeSection}
+          addDay={addDay}
         />
       )}
       {tab === "map" && <MapTab trip={trip} updateTrip={updateTrip} />}
@@ -1050,7 +1065,7 @@ function parseDragData(e) {
 }
 
 function SortableDay({ id, children }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, transition: { duration: 150, easing: "cubic-bezier(0.2, 0, 0, 1)" } });
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -1074,7 +1089,7 @@ function DayDragPreview({ day, index }) {
   );
 }
 
-function ItineraryTab({ trip, expandedDayIds, toggleDay, updateDay, reorderDays, moveActivity, updateTripStash, addSection, updateSection, removeSection }) {
+function ItineraryTab({ trip, expandedDayIds, toggleDay, updateDay, reorderDays, moveActivity, updateTripStash, addSection, updateSection, removeSection, addDay }) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
   const [activeDayId, setActiveDayId] = useState(null);
   const [overDayId, setOverDayId] = useState(null);
@@ -1136,6 +1151,7 @@ function ItineraryTab({ trip, expandedDayIds, toggleDay, updateDay, reorderDays,
           </SortableContext>
           <DragOverlay>{activeDay ? <DayDragPreview day={activeDay} index={activeIndex} /> : null}</DragOverlay>
         </DndContext>
+        <button className="pm-btn pm-btn-ghost" style={{ marginTop: 4, color: "var(--ink)", borderColor: "rgba(42,32,25,0.3)" }} onClick={addDay}><Plus size={12} /> add a day</button>
       </div>
     );
   }
@@ -1195,6 +1211,7 @@ function ItineraryTab({ trip, expandedDayIds, toggleDay, updateDay, reorderDays,
           }}
           style={{ height: 28 }}
         />
+        <button className="pm-btn pm-btn-ghost" style={{ marginTop: 4, color: "var(--ink)", borderColor: "rgba(42,32,25,0.3)" }} onClick={addDay}><Plus size={12} /> add a day</button>
       </div>
     </div>
   );
@@ -1251,20 +1268,27 @@ function SectionHeader({ section, onUpdate, onRemove }) {
   );
 }
 
-function ArrowPair({ onUp, onDown, canUp, canDown, size }) {
+function DragHandleStack({ dragHandleProps, onUp, onDown, canUp, canDown, size }) {
   const s = size || 13;
   return (
-    <div style={{ display: "flex", flexDirection: "column", flexShrink: 0, border: "1px solid rgba(46,43,38,0.25)", borderRadius: 6, overflow: "hidden" }}>
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0, border: "1px solid rgba(46,43,38,0.25)", borderRadius: 6, overflow: "hidden" }}>
       <button
         onClick={(e) => { e.stopPropagation(); canUp && onUp(); }}
         disabled={!canUp}
-        style={{ background: canUp ? "#FAF8F4" : "transparent", border: "none", borderBottom: "1px solid rgba(46,43,38,0.2)", cursor: canUp ? "pointer" : "default", opacity: canUp ? 1 : 0.3, padding: "2px 5px", lineHeight: 0, color: "var(--ink)" }}
+        style={{ background: canUp ? "#FAF8F4" : "transparent", border: "none", borderBottom: "1px solid rgba(46,43,38,0.15)", cursor: canUp ? "pointer" : "default", opacity: canUp ? 1 : 0.3, padding: "2px 5px", lineHeight: 0, color: "var(--ink)", width: "100%" }}
         aria-label="Move up"
       ><ChevronUp size={s} /></button>
+      <span
+        {...(dragHandleProps || {})}
+        onClick={(e) => e.stopPropagation()}
+        style={{ display: "flex", alignItems: "center", justifyContent: "center", cursor: "grab", touchAction: "none", padding: "3px 5px", background: "#FAF8F4", borderBottom: "1px solid rgba(46,43,38,0.15)" }}
+      >
+        <GripVertical size={s} style={{ color: "var(--ink-soft)", opacity: 0.5 }} />
+      </span>
       <button
         onClick={(e) => { e.stopPropagation(); canDown && onDown(); }}
         disabled={!canDown}
-        style={{ background: canDown ? "#FAF8F4" : "transparent", border: "none", cursor: canDown ? "pointer" : "default", opacity: canDown ? 1 : 0.3, padding: "2px 5px", lineHeight: 0, color: "var(--ink)" }}
+        style={{ background: canDown ? "#FAF8F4" : "transparent", border: "none", cursor: canDown ? "pointer" : "default", opacity: canDown ? 1 : 0.3, padding: "2px 5px", lineHeight: 0, color: "var(--ink)", width: "100%" }}
         aria-label="Move down"
       ><ChevronDown size={s} /></button>
     </div>
@@ -1282,7 +1306,7 @@ function ActivityDragPreview({ activity, index }) {
 }
 
 function SortableActivity({ id, children }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, transition: { duration: 150, easing: "cubic-bezier(0.2, 0, 0, 1)" } });
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -1337,12 +1361,7 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, dragHandleP
     <div>
       <div onClick={onToggle} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", cursor: "pointer", gap: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-          <span {...(dragHandleProps || {})} onClick={(e) => e.stopPropagation()} style={{ display: "flex", cursor: "grab", touchAction: "none", flexShrink: 0 }}>
-            <GripVertical size={14} style={{ color: "var(--ink-soft)", opacity: 0.35 }} />
-          </span>
-          {(onMoveUp || onMoveDown) && (
-            <ArrowPair onUp={onMoveUp} onDown={onMoveDown} canUp={canMoveUp} canDown={canMoveDown} />
-          )}
+          <DragHandleStack dragHandleProps={dragHandleProps} onUp={onMoveUp} onDown={onMoveDown} canUp={canMoveUp} canDown={canMoveDown} />
           <div style={{ minWidth: 0 }}>
             <div className="pm-mono" style={{ fontSize: 11, color: "var(--ink-soft)" }}>{formatDate(day.date)}</div>
             <div style={{ fontSize: 17, fontWeight: 700, marginTop: 2 }}>{hideCity ? (day.blurb || "Untitled day") : (day.city || "Untitled stop")}</div>
@@ -1373,13 +1392,11 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, dragHandleP
                         {({ handleProps }) => (
                           <div style={{ marginBottom: 10, background: tint.bg, borderLeft: `3px solid ${tint.edge}`, border: "1px solid rgba(46,43,38,0.1)", borderRadius: 8, padding: 10 }}>
                             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                              <span {...handleProps} className="pm-mono" style={{ fontSize: 9, color: "var(--ink-soft)", opacity: 0.75, display: "flex", alignItems: "center", gap: 4, cursor: "grab", touchAction: "none" }}>
-                                <GripVertical size={11} style={{ opacity: 0.5 }} /> STOP {idx + 1}
-                              </span>
                               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                <ArrowPair onUp={() => moveActivityUp(idx)} onDown={() => moveActivityDown(idx)} canUp={idx !== 0} canDown={idx !== total - 1} size={11} />
-                                <button onClick={() => removeActivity(a.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)" }} aria-label="Remove activity"><X size={13} /></button>
+                                <DragHandleStack dragHandleProps={handleProps} onUp={() => moveActivityUp(idx)} onDown={() => moveActivityDown(idx)} canUp={idx !== 0} canDown={idx !== total - 1} size={11} />
+                                <span className="pm-mono" style={{ fontSize: 9, color: "var(--ink-soft)", opacity: 0.75 }}>STOP {idx + 1}</span>
                               </div>
+                              <button onClick={() => removeActivity(a.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)" }} aria-label="Remove activity"><X size={13} /></button>
                             </div>
                             <div style={{ marginBottom: 6 }}>
                               <span className="pm-label">Where</span>
