@@ -3,6 +3,7 @@ import {
   MapPin, Plus, X, ChevronDown, ChevronUp, ArrowLeft, Search, GripVertical,
   Map as MapIcon, BookOpen, Tag, KeyRound, BedDouble, Utensils,
   Link2, Compass, Trash2, PenLine, LayoutGrid, Camera,
+  Coffee, ShoppingBag, Mountain, Waves, Ticket, Wine, Landmark, Bike, Music, Car, Fish, IceCreamCone,
 } from "lucide-react";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragOverlay, useDroppable, useDraggable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
@@ -135,7 +136,11 @@ function migrateTrip(trip) {
   }
   if (!t.stash) t = { ...t, stash: { hotels: [], spots: [], codes: [] } };
   if (!t.notes) t = { ...t, notes: [] };
-  if (t.pins) t = { ...t, pins: t.pins.map((p) => (p.tags ? p : { ...p, tags: [] })) };
+  if (!t.categories || !t.categories.length) {
+    t = { ...t, categories: defaultCategories() };
+    const remap = { restaurant: "cat-restaurant", spot: "cat-spot", hotel: "cat-hotel" };
+    t = { ...t, pins: (t.pins || []).map((p) => (remap[p.category] ? { ...p, category: remap[p.category] } : p)) };
+  }
   return t;
 }
 
@@ -228,15 +233,15 @@ function buildSeedTrip() {
   ];
 
   const pins = [
-    { id: uid(), dayId: days[0].id, name: "Trees Organic Coffee", category: "restaurant", note: "First stop before hitting the road.", link: "", tags: ["coffee"] },
-    { id: uid(), dayId: days[2].id, name: "Kerry Park", category: "spot", note: "Best skyline view in Seattle, go at dusk.", link: "", tags: ["view"] },
-    { id: uid(), dayId: days[4].id, name: "Pok Pok", category: "restaurant", note: "Thai, apparently worth the wait.", link: "", tags: ["dinner"] },
-    { id: uid(), dayId: days[5].id, name: "Smith Rock State Park", category: "spot", note: "Misery Ridge trail.", link: "", tags: ["hike"] },
-    { id: uid(), dayId: days[7].id, name: "Carter House Inn", category: "hotel", note: "Victorian B&B with a well-reviewed restaurant.", link: "", tags: [] },
-    { id: uid(), dayId: days[8].id, name: "Point Arena Lighthouse", category: "spot", note: "Climb to the top for coast views.", link: "", tags: ["view"] },
-    { id: uid(), dayId: days[10].id, name: "Tartine Bakery", category: "restaurant", note: "Morning bun, get there early.", link: "", tags: ["breakfast"] },
-    { id: uid(), dayId: days[11].id, name: "Nepenthe", category: "restaurant", note: "Cliffside sunset dinner.", link: "", tags: ["dinner", "view"] },
-    { id: uid(), dayId: days[13].id, name: "Sunset Cliffs", category: "spot", note: "Trip-end sunset.", link: "", tags: ["view"] },
+    { id: uid(), dayId: days[0].id, name: "Trees Organic Coffee", category: "cat-restaurant", note: "First stop before hitting the road.", link: "" },
+    { id: uid(), dayId: days[2].id, name: "Kerry Park", category: "cat-spot", note: "Best skyline view in Seattle, go at dusk.", link: "" },
+    { id: uid(), dayId: days[4].id, name: "Pok Pok", category: "cat-restaurant", note: "Thai, apparently worth the wait.", link: "" },
+    { id: uid(), dayId: days[5].id, name: "Smith Rock State Park", category: "cat-spot", note: "Misery Ridge trail.", link: "" },
+    { id: uid(), dayId: days[7].id, name: "Carter House Inn", category: "cat-hotel", note: "Victorian B&B with a well-reviewed restaurant.", link: "" },
+    { id: uid(), dayId: days[8].id, name: "Point Arena Lighthouse", category: "cat-spot", note: "Climb to the top for coast views.", link: "" },
+    { id: uid(), dayId: days[10].id, name: "Tartine Bakery", category: "cat-restaurant", note: "Morning bun, get there early.", link: "" },
+    { id: uid(), dayId: days[11].id, name: "Nepenthe", category: "cat-restaurant", note: "Cliffside sunset dinner.", link: "" },
+    { id: uid(), dayId: days[13].id, name: "Sunset Cliffs", category: "cat-spot", note: "Trip-end sunset.", link: "" },
   ];
 
   return {
@@ -251,14 +256,29 @@ function buildSeedTrip() {
     sections: [],
     stash: { hotels: [], spots: [], codes: [] },
     notes: [],
+    categories: defaultCategories(),
   };
 }
 
-const CATEGORY_META = {
-  restaurant: { label: "Restaurants", icon: Utensils, ramp: "#C1591F" },
-  spot: { label: "Spots", icon: MapPin, ramp: "#3C7A54" },
-  hotel: { label: "Hotels", icon: BedDouble, ramp: "#2C5F9E" },
+const ICON_LIBRARY = {
+  Utensils, MapPin, BedDouble, Coffee, Camera, ShoppingBag, Mountain, Waves, Ticket, Wine, Landmark, Bike, Music, Car, Fish, IceCreamCone,
 };
+const ICON_LIBRARY_KEYS = Object.keys(ICON_LIBRARY);
+function iconFor(name) { return ICON_LIBRARY[name] || MapPin; }
+
+const CATEGORY_COLORS = ["#C1591F", "#2E5940", "#2C5F9E", "#B98A2E", "#8B4A9C", "#3C7A6E"];
+
+function defaultCategories() {
+  return [
+    { id: "cat-restaurant", name: "Restaurants", icon: "Utensils", color: "#C1591F" },
+    { id: "cat-spot", name: "Spots", icon: "MapPin", color: "#2E5940" },
+    { id: "cat-hotel", name: "Hotels", icon: "BedDouble", color: "#2C5F9E" },
+  ];
+}
+function catMeta(trip, categoryId) {
+  const cats = (trip && trip.categories && trip.categories.length) ? trip.categories : defaultCategories();
+  return cats.find((c) => c.id === categoryId) || cats[0];
+}
 
 const CARD_GRADIENTS = [
   "linear-gradient(135deg,#3C7A54,#1F3B2C)",
@@ -428,6 +448,7 @@ export default function App() {
       sections,
       stash: { hotels: [], spots: [], codes: [] },
       notes: [],
+      categories: defaultCategories(),
     };
     setTrips((prev) => [...(prev || []), trip]);
     setShowNewForm(false);
@@ -542,8 +563,10 @@ export default function App() {
 
 function Masthead() {
   return (
-    <div style={{ textAlign: "center", padding: "30px 20px 16px" }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 22, padding: "30px 20px 20px" }}>
+      <Thumbtack color="#C1591F" style={{ transform: "rotate(-14deg)" }} />
       <div className="pm-display" style={{ fontSize: 40, color: "var(--ink)" }}>Postmark</div>
+      <StampGraphic accent="#2E5940" index="masthead" topText="★ SAVE ★ PLAN ★" size={54} />
     </div>
   );
 }
@@ -576,11 +599,10 @@ const STAMP_PLACEMENTS = [
   { top: 7, right: 2, rot: -5 },
 ];
 
-function PostmarkStamp({ accent, index, topText }) {
+function StampGraphic({ accent, index, topText, size }) {
   const pathId = `pm-stamp-path-${index}`;
-  const placement = STAMP_PLACEMENTS[index % STAMP_PLACEMENTS.length];
   return (
-    <svg width="52" height="52" viewBox="0 0 100 100" style={{ position: "absolute", top: placement.top, right: placement.right, transform: `rotate(${placement.rot}deg)`, zIndex: 2 }}>
+    <svg width={size || 52} height={size || 52} viewBox="0 0 100 100">
       <defs>
         <path id={pathId} d="M 50,50 m -38,0 a 38,38 0 1,1 76,0 a 38,38 0 1,1 -76,0" />
       </defs>
@@ -593,6 +615,15 @@ function PostmarkStamp({ accent, index, topText }) {
       <text x="50" y="44" textAnchor="middle" fontSize="15" fontWeight="700" fill={accent} style={{ fontFamily: "'Rye', serif" }}>POST</text>
       <text x="50" y="66" textAnchor="middle" fontSize="7" fill={accent} letterSpacing="1.5">MARK</text>
     </svg>
+  );
+}
+
+function PostmarkStamp({ accent, index, topText }) {
+  const placement = STAMP_PLACEMENTS[index % STAMP_PLACEMENTS.length];
+  return (
+    <div style={{ position: "absolute", top: placement.top, right: placement.right, transform: `rotate(${placement.rot}deg)`, zIndex: 2 }}>
+      <StampGraphic accent={accent} index={index} topText={topText} />
+    </div>
   );
 }
 
@@ -1011,6 +1042,7 @@ function TripView({ trip, onBack, updateTrip }) {
           updateSection={updateSection}
           removeSection={removeSection}
           addDay={addDay}
+          updateTrip={updateTrip}
         />
       )}
       {tab === "overview" && <OverviewTab trip={trip} updateTrip={updateTrip} />}
@@ -1096,7 +1128,11 @@ function DayDragPreview({ day, index }) {
   );
 }
 
-function ItineraryTab({ trip, expandedDayIds, toggleDay, updateDay, reorderDays, moveActivity, updateTripStash, addSection, updateSection, removeSection, addDay }) {
+function ItineraryTab({ trip, expandedDayIds, toggleDay, updateDay, reorderDays, moveActivity, updateTripStash, addSection, updateSection, removeSection, addDay, updateTrip }) {
+  function updatePin(id, patch) { updateTrip((t) => ({ ...t, pins: t.pins.map((p) => (p.id === id ? { ...p, ...patch } : p)) })); }
+  function unassignPin(id) { updatePin(id, { dayId: null }); }
+  function updateNoteText(id, text) { updateTrip((t) => ({ ...t, notes: t.notes.map((n) => (n.id === id ? { ...n, text } : n)) })); }
+  function unassignNote(id) { updateTrip((t) => ({ ...t, notes: t.notes.map((n) => (n.id === id ? { ...n, dayId: null } : n)) })); }
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
   const [activeDayId, setActiveDayId] = useState(null);
   const [overDayId, setOverDayId] = useState(null);
@@ -1208,6 +1244,10 @@ function ItineraryTab({ trip, expandedDayIds, toggleDay, updateDay, reorderDays,
                             activeAct={activeAct} overAct={overAct}
                             dayPins={trip.pins.filter((p) => p.dayId === day.id)}
                             dayNotes={(trip.notes || []).filter((n) => n.dayId === day.id)}
+                            categories={trip.categories}
+                            onUnassignPin={unassignPin}
+                            onUnassignNote={unassignNote}
+                            onUpdateNoteText={updateNoteText}
                           />
                         </div>
                       </div>
@@ -1262,6 +1302,10 @@ function ItineraryTab({ trip, expandedDayIds, toggleDay, updateDay, reorderDays,
                             activeAct={activeAct} overAct={overAct}
                             dayPins={trip.pins.filter((p) => p.dayId === day.id)}
                             dayNotes={(trip.notes || []).filter((n) => n.dayId === day.id)}
+                            categories={trip.categories}
+                            onUnassignPin={unassignPin}
+                            onUnassignNote={unassignNote}
+                            onUpdateNoteText={updateNoteText}
                           />
                         </div>
                       </div>
@@ -1391,20 +1435,56 @@ function SortableActivity({ id, dayId, children }) {
   return <div ref={setNodeRef} style={style}>{children({ handleProps: { ...attributes, ...listeners } })}</div>;
 }
 
-function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, dragHandleProps, canMoveUp, canMoveDown, onMoveUp, onMoveDown, activeAct, overAct, dayPins, dayNotes, onUnassignPin, onUnassignNote }) {
+function SimpleStopCard({ tint, dragHandleProps, titleValue, onTitleChange, titleReadOnly, icon: Icon, iconColor, expanded, onToggleExpand, expandedContent, onRemove }) {
+  return (
+    <div style={{ marginBottom: 8, background: tint.bg, borderLeft: `3px solid ${tint.edge}`, border: "1px solid rgba(46,43,38,0.1)", borderRadius: 8, padding: "8px 10px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        {dragHandleProps && (
+          <span {...dragHandleProps} style={{ cursor: "grab", touchAction: "none", display: "flex", flexShrink: 0 }}>
+            <GripVertical size={12} style={{ opacity: 0.4 }} />
+          </span>
+        )}
+        {Icon && <span style={{ color: iconColor, display: "flex", flexShrink: 0 }}><Icon size={13} /></span>}
+        {titleReadOnly ? (
+          <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{titleValue || "Untitled"}</span>
+        ) : (
+          <input
+            className="pm-input"
+            style={{ flex: 1, fontSize: 13, padding: "5px 8px", background: "rgba(255,255,255,0.5)", border: "none" }}
+            value={titleValue}
+            onChange={(e) => onTitleChange(arrowify(e.target.value))}
+            placeholder=""
+          />
+        )}
+        {expandedContent && (
+          <button onClick={onToggleExpand} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)", display: "flex", flexShrink: 0 }} aria-label="Expand">
+            <ChevronDown size={13} style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.15s ease" }} />
+          </button>
+        )}
+        {onRemove && <button onClick={onRemove} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)", flexShrink: 0 }} aria-label="Remove"><X size={13} /></button>}
+      </div>
+      {expanded && expandedContent && <div style={{ marginTop: 6 }}>{expandedContent}</div>}
+    </div>
+  );
+}
+
+const PLANNED_TINT = { bg: "rgba(185,138,46,0.09)", edge: "var(--gold)" };
+
+function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, dragHandleProps, canMoveUp, canMoveDown, onMoveUp, onMoveDown, activeAct, overAct, dayPins, dayNotes, categories, onUnassignPin, onUnassignNote, onUpdateNoteText }) {
+  const [expandedActIds, setExpandedActIds] = useState(() => new Set());
+  const [expandedPlannedIds, setExpandedPlannedIds] = useState(() => new Set());
+
+  function toggleSet(setter, id) {
+    setter((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
   function addActivity() { updateDay((d) => ({ ...d, activities: [...(d.activities || []), act("", "")] })); }
   function updateActivity(id, patch) { updateDay((d) => ({ ...d, activities: d.activities.map((a) => (a.id === id ? { ...a, ...patch } : a)) })); }
   function removeActivity(id) { updateDay((d) => ({ ...d, activities: d.activities.filter((a) => a.id !== id) })); }
-  function moveActivityUp(idx) {
-    if (idx === 0) return;
-    updateDay((d) => ({ ...d, activities: arrayMove(d.activities, idx, idx - 1) }));
-  }
-  function moveActivityDown(idx) {
-    updateDay((d) => {
-      if (idx >= d.activities.length - 1) return d;
-      return { ...d, activities: arrayMove(d.activities, idx, idx + 1) };
-    });
-  }
 
   const titleValue = hideCity ? day.blurb : day.city;
   const titleField = hideCity ? "blurb" : "city";
@@ -1438,28 +1518,54 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, dragHandleP
       {expanded && (
         <div style={{ padding: "0 16px 18px", borderTop: "1px dashed rgba(46,43,38,0.18)" }}>
           <div style={{ marginTop: 14 }}>
-            <input className="pm-input" value={titleValue} onChange={(e) => updateDay((d) => ({ ...d, [titleField]: arrowify(e.target.value) }))} placeholder={hideCity ? "What's this day about" : "City or neighborhood"} />
+            <input className="pm-input" value={titleValue} onChange={(e) => updateDay((d) => ({ ...d, [titleField]: arrowify(e.target.value) }))} placeholder="" />
           </div>
 
           {plannedCount > 0 && (
-            <div style={{ marginTop: 14 }}>
-              <div className="pm-mono" style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--ink-soft)", marginBottom: 6 }}>Planned from Overview</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {(dayPins || []).map((pin) => {
-                  const meta = CATEGORY_META[pin.category] || CATEGORY_META.spot;
-                  const Icon = meta.icon;
-                  return (
-                    <span key={pin.id} className="pm-mono" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, padding: "4px 8px", borderRadius: 12, border: `1.5px solid ${meta.ramp}`, background: "#FAF8F4" }}>
-                      <Icon size={11} style={{ color: meta.ramp }} /> {pin.name}
-                    </span>
-                  );
-                })}
-                {(dayNotes || []).map((note) => (
-                  <span key={note.id} className="pm-mono" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, padding: "4px 8px", borderRadius: 12, background: "rgba(185,138,46,0.14)", border: "1.5px dashed var(--gold)" }}>
-                    {note.text || "Note"}
-                  </span>
-                ))}
-              </div>
+            <div style={{ marginTop: 16 }}>
+              <div className="pm-mono" style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--ink-soft)", marginBottom: 8 }}>Planned from Overview</div>
+              {(dayPins || []).map((pin) => {
+                const meta = catMeta({ categories }, pin.category);
+                const Icon = iconFor(meta.icon);
+                const isExp = expandedPlannedIds.has(pin.id);
+                return (
+                  <SimpleStopCard
+                    key={pin.id}
+                    tint={PLANNED_TINT}
+                    icon={Icon}
+                    iconColor={meta.color}
+                    titleValue={pin.name}
+                    titleReadOnly
+                    expanded={isExp}
+                    onToggleExpand={() => toggleSet(setExpandedPlannedIds, pin.id)}
+                    expandedContent={
+                      <div>
+                        {pin.note && <div style={{ fontSize: 12, color: "var(--ink-soft)", marginBottom: 6 }}>{pin.note}</div>}
+                        {pin.link && <a href={pin.link} target="_blank" rel="noreferrer" className="pm-mono" style={{ fontSize: 11, color: "var(--navy)", display: "block", marginBottom: 6 }}>{pin.link}</a>}
+                        <button className="pm-btn pm-btn-ghost" style={{ fontSize: 10, padding: "4px 9px", color: "var(--ink)", borderColor: "rgba(46,43,38,0.25)" }} onClick={() => onUnassignPin && onUnassignPin(pin.id)}>send back to unscheduled</button>
+                      </div>
+                    }
+                    onRemove={() => onUnassignPin && onUnassignPin(pin.id)}
+                  />
+                );
+              })}
+              {(dayNotes || []).map((note) => {
+                const isExp = expandedPlannedIds.has(note.id);
+                return (
+                  <SimpleStopCard
+                    key={note.id}
+                    tint={PLANNED_TINT}
+                    titleValue={note.text}
+                    onTitleChange={(v) => onUpdateNoteText && onUpdateNoteText(note.id, v)}
+                    expanded={isExp}
+                    onToggleExpand={() => toggleSet(setExpandedPlannedIds, note.id)}
+                    expandedContent={
+                      <button className="pm-btn pm-btn-ghost" style={{ fontSize: 10, padding: "4px 9px", color: "var(--ink)", borderColor: "rgba(46,43,38,0.25)" }} onClick={() => onUnassignNote && onUnassignNote(note.id)}>send back to unscheduled</button>
+                    }
+                    onRemove={() => onUnassignNote && onUnassignNote(note.id)}
+                  />
+                );
+              })}
             </div>
           )}
 
@@ -1468,29 +1574,30 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, dragHandleP
             <SortableContext items={activities.map((a) => a.id)} strategy={verticalListSortingStrategy}>
               {activities.map((a, idx) => {
                 const tint = ACT_TINTS[idx % ACT_TINTS.length];
-                const total = activities.length;
+                const isExp = expandedActIds.has(a.id);
                 return (
                   <React.Fragment key={a.id}>
                     {overIsMine && overAct.id === a.id && (activeIsMine ? activeActivityIndex > overActivityIndex : true) && <InsertLine />}
                     <SortableActivity id={a.id} dayId={day.id}>
                       {({ handleProps }) => (
-                        <div style={{ marginBottom: 10, background: tint.bg, borderLeft: `3px solid ${tint.edge}`, border: "1px solid rgba(46,43,38,0.1)", borderRadius: 8, padding: 10 }}>
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                              <DragHandleStack dragHandleProps={handleProps} onUp={() => moveActivityUp(idx)} onDown={() => moveActivityDown(idx)} canUp={idx !== 0} canDown={idx !== total - 1} size={11} />
-                              <span className="pm-mono" style={{ fontSize: 9, color: "var(--ink-soft)", opacity: 0.75 }}>STOP {idx + 1}</span>
-                            </div>
-                            <button onClick={() => removeActivity(a.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)" }} aria-label="Remove activity"><X size={13} /></button>
-                          </div>
-                          <div style={{ marginBottom: 6 }}>
-                            <span className="pm-label">Where</span>
-                            <input className="pm-input" style={{ fontSize: 13, padding: "6px 8px" }} value={a.where} onChange={(e) => updateActivity(a.id, { where: arrowify(e.target.value) })} placeholder="Place or stop" />
-                          </div>
-                          <div>
-                            <span className="pm-label">To do</span>
-                            <textarea className="pm-textarea" style={{ fontSize: 13, minHeight: 50 }} value={a.text} onChange={(e) => updateActivity(a.id, { text: arrowify(e.target.value) })} placeholder="What's the plan here" />
-                          </div>
-                        </div>
+                        <SimpleStopCard
+                          tint={tint}
+                          dragHandleProps={handleProps}
+                          titleValue={a.where}
+                          onTitleChange={(v) => updateActivity(a.id, { where: v })}
+                          expanded={isExp}
+                          onToggleExpand={() => toggleSet(setExpandedActIds, a.id)}
+                          expandedContent={
+                            <textarea
+                              className="pm-textarea"
+                              style={{ fontSize: 13, minHeight: 50, background: "rgba(255,255,255,0.5)", border: "none" }}
+                              value={a.text}
+                              onChange={(e) => updateActivity(a.id, { text: arrowify(e.target.value) })}
+                              placeholder=""
+                            />
+                          }
+                          onRemove={() => removeActivity(a.id)}
+                        />
                       )}
                     </SortableActivity>
                     {overIsMine && overAct.id === a.id && activeIsMine && activeActivityIndex < overActivityIndex && <InsertLine />}
@@ -1610,18 +1717,18 @@ function DropZone({ id, children }) {
   );
 }
 
-function DraggablePin({ pin, onClick }) {
+function DraggablePin({ pin, categories, onClick }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: pin.id, data: { type: "pin" } });
-  const meta = CATEGORY_META[pin.category] || CATEGORY_META.spot;
-  const Icon = meta.icon;
+  const meta = catMeta({ categories }, pin.category);
+  const Icon = iconFor(meta.icon);
   const style = { transform: CSS.Translate.toString(transform), opacity: isDragging ? 0.4 : 1, zIndex: isDragging ? 5 : "auto" };
   return (
     <button
       ref={setNodeRef} {...listeners} {...attributes} onClick={onClick}
       className="pm-mono"
-      style={{ ...style, display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, padding: "5px 10px", borderRadius: 14, border: `1.5px solid ${meta.ramp}`, background: "#FFFDF9", color: "var(--ink)", cursor: "grab", touchAction: "none" }}
+      style={{ ...style, display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, padding: "5px 10px", borderRadius: 14, border: `1.5px solid ${meta.color}`, background: "#FFFDF9", color: "var(--ink)", cursor: "grab", touchAction: "none" }}
     >
-      <Icon size={11} style={{ color: meta.ramp }} /> {pin.name}
+      <Icon size={11} style={{ color: meta.color }} /> {pin.name}
     </button>
   );
 }
@@ -1647,6 +1754,7 @@ function OverviewTab({ trip, updateTrip }) {
 
   const days = trip.days;
   const notes = trip.notes || [];
+  const categories = trip.categories && trip.categories.length ? trip.categories : defaultCategories();
   const pins = trip.pins.filter((p) => filter === "all" || p.category === filter);
 
   function handleDragStart(e) { setActiveItem({ type: e.active.data.current && e.active.data.current.type, id: e.active.id }); }
@@ -1677,8 +1785,8 @@ function OverviewTab({ trip, updateTrip }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <FilterChip active={filter === "all"} onClick={() => setFilter("all")} label="All" />
-          {Object.entries(CATEGORY_META).map(([key, meta]) => (
-            <FilterChip key={key} active={filter === key} onClick={() => setFilter(key)} label={meta.label} icon={meta.icon} color={meta.ramp} />
+          {categories.map((c) => (
+            <FilterChip key={c.id} active={filter === c.id} onClick={() => setFilter(c.id)} label={c.name} icon={iconFor(c.icon)} color={c.color} />
           ))}
         </div>
         <button className="pm-btn pm-btn-ghost" style={{ color: "var(--ink)", borderColor: "rgba(42,32,25,0.3)" }} onClick={addNote}><Plus size={12} /> add a note</button>
@@ -1690,7 +1798,7 @@ function OverviewTab({ trip, updateTrip }) {
           <DropZone id="unscheduled">
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               {unscheduledPins.map((pin) => (
-                <DraggablePin key={pin.id} pin={pin} onClick={() => { setSelectedPinId(pin.id); setEditingPin(null); }} />
+                <DraggablePin key={pin.id} pin={pin} categories={categories} onClick={() => { setSelectedPinId(pin.id); setEditingPin(null); }} />
               ))}
               {unscheduledNotes.map((note) => (
                 <DraggableNote key={note.id} note={note} onChange={(text) => updateNote(note.id, text)} onRemove={() => removeNote(note.id)} />
@@ -1714,7 +1822,7 @@ function OverviewTab({ trip, updateTrip }) {
                   <DropZone id={day.id}>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                       {dayPins.map((pin) => (
-                        <DraggablePin key={pin.id} pin={pin} onClick={() => { setSelectedPinId(pin.id); setEditingPin(null); }} />
+                        <DraggablePin key={pin.id} pin={pin} categories={categories} onClick={() => { setSelectedPinId(pin.id); setEditingPin(null); }} />
                       ))}
                       {dayNotes.map((note) => (
                         <DraggableNote key={note.id} note={note} onChange={(text) => updateNote(note.id, text)} onRemove={() => removeNote(note.id)} />
@@ -1730,7 +1838,7 @@ function OverviewTab({ trip, updateTrip }) {
 
         <DragOverlay>
           {activePin && (
-            <div className="pm-mono" style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, padding: "5px 10px", borderRadius: 14, border: `1.5px solid ${(CATEGORY_META[activePin.category] || CATEGORY_META.spot).ramp}`, background: "#FFFDF9", boxShadow: "0 8px 18px rgba(0,0,0,0.25)" }}>
+            <div className="pm-mono" style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, padding: "5px 10px", borderRadius: 14, border: `1.5px solid ${catMeta({ categories }, activePin.category).color}`, background: "#FFFDF9", boxShadow: "0 8px 18px rgba(0,0,0,0.25)" }}>
               {activePin.name}
             </div>
           )}
@@ -1744,12 +1852,12 @@ function OverviewTab({ trip, updateTrip }) {
 
       {selectedPin && !editingPin && (
         <div style={{ marginTop: 18 }}>
-          <PinDetail pin={selectedPin} day={days.find((d) => d.id === selectedPin.dayId)} onClose={() => setSelectedPinId(null)} onRemove={() => removePin(selectedPin.id)} onEdit={() => setEditingPin(selectedPin)} />
+          <PinDetail pin={selectedPin} day={days.find((d) => d.id === selectedPin.dayId)} categories={categories} onClose={() => setSelectedPinId(null)} onRemove={() => removePin(selectedPin.id)} onEdit={() => setEditingPin(selectedPin)} />
         </div>
       )}
       {editingPin && (
         <div style={{ marginTop: 18 }}>
-          <PinForm days={days} initial={editingPin} onCancel={() => setEditingPin(null)} onSubmit={(patch) => savePin(editingPin.id, patch)} submitLabel="Save changes" />
+          <PinForm days={days} categories={categories} initial={editingPin} onCancel={() => setEditingPin(null)} onSubmit={(patch) => savePin(editingPin.id, patch)} submitLabel="Save changes" />
         </div>
       )}
     </div>
@@ -1764,35 +1872,23 @@ function FilterChip({ active, onClick, label, icon: Icon, color }) {
   );
 }
 
-function TagPills({ tags }) {
-  if (!tags || tags.length === 0) return null;
+function PinDetail({ pin, day, categories, onClose, onRemove, onEdit }) {
+  const meta = catMeta({ categories }, pin.category);
+  const Icon = iconFor(meta.icon);
   return (
-    <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 6 }}>
-      {tags.map((t) => (
-        <span key={t} className="pm-mono" style={{ fontSize: 10, background: "rgba(46,43,38,0.08)", color: "var(--ink-soft)", borderRadius: 10, padding: "2px 8px" }}>{t}</span>
-      ))}
-    </div>
-  );
-}
-
-function PinDetail({ pin, day, onClose, onRemove, onEdit }) {
-  const meta = CATEGORY_META[pin.category];
-  const Icon = meta.icon;
-  return (
-    <div style={{ background: "#FFFDF9", border: `1.5px solid ${meta.ramp}`, borderRadius: 10, padding: 16 }}>
+    <div style={{ background: "#FFFDF9", border: `1.5px solid ${meta.color}`, borderRadius: 10, padding: 16 }}>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ color: meta.ramp, display: "flex" }}><Icon size={18} /></span>
+          <span style={{ color: meta.color, display: "flex" }}><Icon size={18} /></span>
           <div>
             <div style={{ fontSize: 17, fontWeight: 700, color: "var(--ink)" }}>{pin.name}</div>
             <div className="pm-mono" style={{ fontSize: 10, color: "var(--ink-soft)" }}>
-              {meta.label.slice(0, -1)}{day ? ` · day ${formatDateShort(day.date)} · ${day.city}` : " · unscheduled"}
+              {meta.name}{day ? ` · day ${formatDateShort(day.date)} · ${day.city}` : " · unscheduled"}
             </div>
           </div>
         </div>
         <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)" }} aria-label="Close"><X size={15} /></button>
       </div>
-      <TagPills tags={pin.tags} />
       {pin.note && <div style={{ marginTop: 10, fontSize: 14, color: "var(--ink)" }}>{pin.note}</div>}
       {pin.link && <a href={pin.link} target="_blank" rel="noreferrer" className="pm-mono" style={{ display: "inline-flex", alignItems: "center", gap: 4, marginTop: 8, fontSize: 12, color: "var(--navy)" }}><Link2 size={12} /> {pin.link}</a>}
       <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
@@ -1803,13 +1899,12 @@ function PinDetail({ pin, day, onClose, onRemove, onEdit }) {
   );
 }
 
-function PinForm({ days, onCancel, onSubmit, initial, submitLabel, hideDayField }) {
+function PinForm({ days, categories, onCancel, onSubmit, initial, submitLabel, hideDayField }) {
   const [name, setName] = useState(initial ? initial.name : "");
-  const [category, setCategory] = useState(initial ? initial.category : "restaurant");
+  const [category, setCategory] = useState(initial && initial.category ? initial.category : (categories[0] ? categories[0].id : ""));
   const [dayId, setDayId] = useState(initial && initial.dayId ? initial.dayId : "");
   const [note, setNote] = useState(initial ? initial.note : "");
   const [link, setLink] = useState(initial ? initial.link : "");
-  const [tagsText, setTagsText] = useState(initial && initial.tags ? initial.tags.join(", ") : "");
   const [latLng, setLatLng] = useState(initial && typeof initial.lat === "number" ? { lat: initial.lat, lng: initial.lng } : null);
   const nameInputRef = useRef(null);
   const acRef = useRef(null);
@@ -1830,8 +1925,7 @@ function PinForm({ days, onCancel, onSubmit, initial, submitLabel, hideDayField 
 
   function submit() {
     if (!name) return;
-    const tags = tagsText.split(",").map((t) => t.trim()).filter(Boolean);
-    onSubmit({ name, category, dayId: dayId || null, note, link, tags, lat: latLng ? latLng.lat : undefined, lng: latLng ? latLng.lng : undefined });
+    onSubmit({ name, category, dayId: dayId || null, note, link, lat: latLng ? latLng.lat : undefined, lng: latLng ? latLng.lng : undefined });
   }
 
   return (
@@ -1844,7 +1938,7 @@ function PinForm({ days, onCancel, onSubmit, initial, submitLabel, hideDayField 
         <div style={{ flex: "1 1 120px" }}>
           <span className="pm-label">Category</span>
           <select className="pm-select" value={category} onChange={(e) => setCategory(e.target.value)}>
-            {Object.entries(CATEGORY_META).map(([key, meta]) => (<option key={key} value={key}>{meta.label.slice(0, -1)}</option>))}
+            {categories.map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
           </select>
         </div>
         {!hideDayField && (
@@ -1856,10 +1950,6 @@ function PinForm({ days, onCancel, onSubmit, initial, submitLabel, hideDayField 
             </select>
           </div>
         )}
-      </div>
-      <div>
-        <span className="pm-label">Tags (comma separated)</span>
-        <input className="pm-input" value={tagsText} onChange={(e) => setTagsText(e.target.value)} placeholder="dinner, museum, view" />
       </div>
       <div>
         <span className="pm-label">Note</span>
@@ -1877,20 +1967,87 @@ function PinForm({ days, onCancel, onSubmit, initial, submitLabel, hideDayField 
   );
 }
 
+function IconPicker({ value, onChange }) {
+  return (
+    <div style={{ display: "flex", gap: 4, flexWrap: "wrap", maxWidth: 260 }}>
+      {ICON_LIBRARY_KEYS.map((k) => {
+        const Icon = ICON_LIBRARY[k];
+        const active = value === k;
+        return (
+          <button key={k} onClick={() => onChange(k)} style={{ width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", border: active ? "2px solid var(--forest)" : "1px solid rgba(46,43,38,0.2)", borderRadius: 6, background: active ? "rgba(46,89,64,0.12)" : "#FAF8F4", cursor: "pointer", padding: 0, color: "var(--ink)" }}>
+            <Icon size={13} />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function CategoryManager({ categories, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [pickerFor, setPickerFor] = useState(null);
+  const [newName, setNewName] = useState("");
+  const [newIcon, setNewIcon] = useState(ICON_LIBRARY_KEYS[0]);
+
+  function addCategory() {
+    if (!newName.trim()) return;
+    const color = CATEGORY_COLORS[categories.length % CATEGORY_COLORS.length];
+    onChange([...categories, { id: uid(), name: newName.trim(), icon: newIcon, color }]);
+    setNewName("");
+  }
+  function updateCat(id, patch) { onChange(categories.map((c) => (c.id === id ? { ...c, ...patch } : c))); }
+  function removeCat(id) { if (categories.length > 1) onChange(categories.filter((c) => c.id !== id)); }
+
+  if (!open) {
+    return <button className="pm-btn pm-btn-ghost" style={{ color: "var(--ink)", borderColor: "rgba(42,32,25,0.3)" }} onClick={() => setOpen(true)}><PenLine size={12} /> manage categories</button>;
+  }
+
+  return (
+    <div style={{ background: "rgba(185,138,46,0.10)", border: "1px dashed var(--gold)", borderRadius: 10, padding: 14, marginBottom: 16, display: "grid", gap: 10 }}>
+      <div className="pm-display" style={{ fontSize: 16, color: "var(--ink)" }}>Categories</div>
+      {categories.map((c) => {
+        const Icon = iconFor(c.icon);
+        return (
+          <div key={c.id} style={{ display: "grid", gap: 6 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button onClick={() => setPickerFor(pickerFor === c.id ? null : c.id)} style={{ width: 30, height: 30, borderRadius: 6, border: "1px solid rgba(46,43,38,0.2)", background: "#FAF8F4", color: c.color, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+                <Icon size={15} />
+              </button>
+              <input className="pm-input" style={{ flex: 1, fontSize: 13 }} value={c.name} onChange={(e) => updateCat(c.id, { name: e.target.value })} />
+              <button onClick={() => removeCat(c.id)} disabled={categories.length <= 1} style={{ background: "none", border: "none", cursor: categories.length <= 1 ? "default" : "pointer", opacity: categories.length <= 1 ? 0.3 : 1, color: "var(--ink-soft)", flexShrink: 0 }} aria-label="Remove category"><X size={14} /></button>
+            </div>
+            {pickerFor === c.id && <IconPicker value={c.icon} onChange={(icon) => { updateCat(c.id, { icon }); setPickerFor(null); }} />}
+          </div>
+        );
+      })}
+      <div style={{ borderTop: "1px dashed rgba(46,43,38,0.2)", paddingTop: 10, display: "grid", gap: 6 }}>
+        <div className="pm-mono" style={{ fontSize: 10, color: "var(--ink-soft)" }}>ADD A CATEGORY</div>
+        <IconPicker value={newIcon} onChange={setNewIcon} />
+        <div style={{ display: "flex", gap: 8 }}>
+          <input className="pm-input" style={{ flex: 1, fontSize: 13 }} value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Category name" />
+          <button className="pm-btn pm-btn-solid" style={{ fontSize: 11, padding: "6px 12px" }} onClick={addCategory}>Add</button>
+        </div>
+      </div>
+      <button className="pm-btn pm-btn-ghost" style={{ color: "var(--ink)", borderColor: "rgba(46,43,38,0.3)" }} onClick={() => setOpen(false)}>Done</button>
+    </div>
+  );
+}
+
 function StopsTab({ trip, updateTrip, onPlan }) {
   const envKey = getEnvApiKey();
   const [apiKey, setApiKey] = useState(() => getStoredApiKey());
   const [keyInput, setKeyInput] = useState("");
   const [status, setStatus] = useState(apiKey ? "loading" : "needs-key");
   const [pendingLatLng, setPendingLatLng] = useState(null);
-  const [selectedPinId, setSelectedPinId] = useState(null);
   const [editingPinId, setEditingPinId] = useState(null);
   const [filterCategory, setFilterCategory] = useState("all");
-  const [filterTag, setFilterTag] = useState(null);
   const mapRef = useRef(null);
   const searchRef = useRef(null);
   const mapObjRef = useRef(null);
   const markersRef = useRef([]);
+
+  const categories = trip.categories && trip.categories.length ? trip.categories : defaultCategories();
+  function setCategories(cats) { updateTrip((t) => ({ ...t, categories: cats })); }
 
   function saveKey() {
     if (!keyInput.trim()) return;
@@ -1918,7 +2075,7 @@ function StopsTab({ trip, updateTrip, onPlan }) {
       zoomControlOptions: { style: window.google.maps.ZoomControlStyle.LARGE },
     });
     mapObjRef.current = map;
-    map.addListener("click", (e) => { setPendingLatLng({ lat: e.latLng.lat(), lng: e.latLng.lng() }); setSelectedPinId(null); setEditingPinId(null); });
+    map.addListener("click", (e) => { setPendingLatLng({ lat: e.latLng.lat(), lng: e.latLng.lng() }); setEditingPinId(null); });
 
     if (searchRef.current) {
       const ac = new window.google.maps.places.Autocomplete(searchRef.current, { fields: ["geometry", "name"] });
@@ -1927,7 +2084,7 @@ function StopsTab({ trip, updateTrip, onPlan }) {
         if (!place || !place.geometry) return;
         const lat = place.geometry.location.lat();
         const lng = place.geometry.location.lng();
-        updateTrip((t) => ({ ...t, pins: [...t.pins, { id: uid(), dayId: null, name: place.name || "Saved place", category: "spot", note: "", link: "", tags: [], lat, lng }] }));
+        updateTrip((t) => ({ ...t, pins: [...t.pins, { id: uid(), dayId: null, name: place.name || "Saved place", category: (t.categories && t.categories[0] ? t.categories[0].id : "cat-spot"), note: "", link: "", lat, lng }] }));
         if (searchRef.current) searchRef.current.value = "";
       });
     }
@@ -1941,18 +2098,18 @@ function StopsTab({ trip, updateTrip, onPlan }) {
     markersRef.current = [];
     const geocoded = trip.pins.filter((p) => typeof p.lat === "number" && typeof p.lng === "number");
     geocoded.forEach((pin) => {
-      const meta = CATEGORY_META[pin.category] || CATEGORY_META.spot;
+      const meta = catMeta(trip, pin.category);
       const marker = new window.google.maps.Marker({
         position: { lat: pin.lat, lng: pin.lng },
         map: mapObjRef.current,
         title: pin.name,
         icon: {
-          url: thumbtackIconUrl(meta.ramp),
-          scaledSize: new window.google.maps.Size(24, 39),
-          anchor: new window.google.maps.Point(12, 35),
+          url: thumbtackIconUrl(meta.color),
+          scaledSize: new window.google.maps.Size(17, 27),
+          anchor: new window.google.maps.Point(8, 24),
         },
       });
-      marker.addListener("click", () => { setSelectedPinId(pin.id); setEditingPinId(null); setPendingLatLng(null); });
+      marker.addListener("click", () => { setEditingPinId(pin.id); setPendingLatLng(null); });
       markersRef.current.push(marker);
     });
     if (geocoded.length > 0) {
@@ -1969,12 +2126,9 @@ function StopsTab({ trip, updateTrip, onPlan }) {
 
   function addPin(pin) { updateTrip((t) => ({ ...t, pins: [...t.pins, { id: uid(), ...pin }] })); setPendingLatLng(null); }
   function savePin(id, patch) { updateTrip((t) => ({ ...t, pins: t.pins.map((p) => (p.id === id ? { ...p, ...patch } : p)) })); setEditingPinId(null); }
-  function removePin(id) { updateTrip((t) => ({ ...t, pins: t.pins.filter((p) => p.id !== id) })); setSelectedPinId(null); setEditingPinId(null); }
+  function removePin(id) { updateTrip((t) => ({ ...t, pins: t.pins.filter((p) => p.id !== id) })); setEditingPinId(null); }
 
-  const selectedPin = trip.pins.find((p) => p.id === selectedPinId);
-  const editingPin = trip.pins.find((p) => p.id === editingPinId);
-  const allTags = Array.from(new Set(trip.pins.flatMap((p) => p.tags || []))).sort();
-  const galleryPins = trip.pins.filter((p) => (filterCategory === "all" || p.category === filterCategory) && (!filterTag || (p.tags || []).includes(filterTag)));
+  const galleryPins = trip.pins.filter((p) => filterCategory === "all" || p.category === filterCategory);
 
   if (status === "needs-key") {
     return (
@@ -2013,71 +2167,43 @@ function StopsTab({ trip, updateTrip, onPlan }) {
 
       {pendingLatLng && (
         <div style={{ marginTop: 14 }}>
-          <PinForm
-            days={trip.days}
-            initial={{ lat: pendingLatLng.lat, lng: pendingLatLng.lng }}
-            onCancel={() => setPendingLatLng(null)}
-            onSubmit={addPin}
-          />
-        </div>
-      )}
-      {selectedPin && !editingPinId && (
-        <div style={{ marginTop: 14 }}>
-          <PinDetail pin={selectedPin} day={trip.days.find((d) => d.id === selectedPin.dayId)} onClose={() => setSelectedPinId(null)} onRemove={() => removePin(selectedPin.id)} onEdit={() => setEditingPinId(selectedPin.id)} />
-        </div>
-      )}
-      {editingPin && (
-        <div style={{ marginTop: 14 }}>
-          <PinForm days={trip.days} initial={editingPin} onCancel={() => setEditingPinId(null)} onSubmit={(patch) => savePin(editingPin.id, patch)} submitLabel="Save changes" />
+          <PinForm days={trip.days} categories={categories} initial={{ lat: pendingLatLng.lat, lng: pendingLatLng.lng }} onCancel={() => setPendingLatLng(null)} onSubmit={addPin} />
         </div>
       )}
 
       <div style={{ marginTop: 28, borderTop: "1px solid rgba(42,32,25,0.15)", paddingTop: 18 }}>
-        <div className="pm-display" style={{ fontSize: 20, color: "var(--ink)", marginBottom: 10 }}>Saved spots</div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 10 }}>
+          <div className="pm-display" style={{ fontSize: 20, color: "var(--ink)" }}>Saved spots</div>
+          <CategoryManager categories={categories} onChange={setCategories} />
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
           <FilterChip active={filterCategory === "all"} onClick={() => setFilterCategory("all")} label="All" />
-          {Object.entries(CATEGORY_META).map(([key, meta]) => (
-            <FilterChip key={key} active={filterCategory === key} onClick={() => setFilterCategory(key)} label={meta.label} icon={meta.icon} color={meta.ramp} />
+          {categories.map((c) => (
+            <FilterChip key={c.id} active={filterCategory === c.id} onClick={() => setFilterCategory(c.id)} label={c.name} icon={iconFor(c.icon)} color={c.color} />
           ))}
         </div>
-        {allTags.length > 0 && (
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
-            {allTags.map((t) => (
-              <button
-                key={t}
-                onClick={() => setFilterTag(filterTag === t ? null : t)}
-                className="pm-mono"
-                style={{ fontSize: 10, padding: "4px 10px", borderRadius: 12, border: `1px solid ${filterTag === t ? "var(--gold)" : "rgba(42,32,25,0.25)"}`, background: filterTag === t ? "var(--gold)" : "transparent", color: filterTag === t ? "#fff" : "var(--ink-soft)", cursor: "pointer" }}
-              >#{t}</button>
-            ))}
-          </div>
-        )}
 
         {galleryPins.length === 0 && <div style={{ fontSize: 13, color: "var(--ink-soft)", fontStyle: "italic" }}>No saved spots yet — search above or click the map.</div>}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
           {galleryPins.map((pin) => {
             if (editingPinId === pin.id) {
-              return <div key={pin.id} style={{ gridColumn: "1 / -1" }}><PinForm days={trip.days} initial={pin} onCancel={() => setEditingPinId(null)} onSubmit={(patch) => savePin(pin.id, patch)} submitLabel="Save changes" /></div>;
+              return <div key={pin.id} style={{ gridColumn: "1 / -1" }}><PinForm days={trip.days} categories={categories} initial={pin} onCancel={() => setEditingPinId(null)} onSubmit={(patch) => savePin(pin.id, patch)} submitLabel="Save changes" /></div>;
             }
-            const meta = CATEGORY_META[pin.category] || CATEGORY_META.spot;
-            const Icon = meta.icon;
+            const meta = catMeta(trip, pin.category);
+            const Icon = iconFor(meta.icon);
             const day = trip.days.find((d) => d.id === pin.dayId);
             return (
-              <div key={pin.id} style={{ background: "#FFFDF9", border: "1px solid rgba(46,43,38,0.12)", borderRadius: 10, padding: 12 }}>
+              <div key={pin.id} onClick={() => setEditingPinId(pin.id)} style={{ background: "#FFFDF9", border: "1px solid rgba(46,43,38,0.12)", borderRadius: 10, padding: 12, cursor: "pointer" }}>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-                    <span style={{ color: meta.ramp, flexShrink: 0 }}><Icon size={15} /></span>
+                    <span style={{ color: meta.color, flexShrink: 0 }}><Icon size={15} /></span>
                     <span style={{ fontSize: 14, fontWeight: 700, color: "var(--ink)" }}>{pin.name}</span>
                   </div>
-                  <button onClick={() => removePin(pin.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)", flexShrink: 0 }} aria-label="Remove"><X size={13} /></button>
+                  <button onClick={(e) => { e.stopPropagation(); removePin(pin.id); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)", flexShrink: 0 }} aria-label="Remove"><X size={13} /></button>
                 </div>
                 <div className="pm-mono" style={{ fontSize: 10, color: "var(--ink-soft)", marginTop: 4 }}>{day ? `day · ${day.city || formatDateShort(day.date)}` : "unscheduled"}</div>
-                <TagPills tags={pin.tags} />
                 {pin.note && <div style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 6 }}>{pin.note}</div>}
-                <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
-                  <button className="pm-btn pm-btn-ghost" style={{ fontSize: 10, padding: "4px 9px", color: "var(--ink)", borderColor: "rgba(46,43,38,0.25)" }} onClick={() => setEditingPinId(pin.id)}><PenLine size={11} /> edit</button>
-                  <button className="pm-btn pm-btn-solid" style={{ fontSize: 10, padding: "4px 9px" }} onClick={onPlan}>plan →</button>
-                </div>
+                <button className="pm-btn pm-btn-solid" style={{ fontSize: 10, padding: "4px 9px", marginTop: 10 }} onClick={(e) => { e.stopPropagation(); onPlan(); }}>plan →</button>
               </div>
             );
           })}

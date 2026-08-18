@@ -1,6 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <circle cx="32" cy="32" r="32" fill="#F8E29C"/>
-  <rect x="29" y="42" width="6" height="10" fill="#7A3811"/>
-  <polygon points="32,9 17,29 47,29" fill="#C1591F"/>
-  <polygon points="32,19 15,37 49,37" fill="#A8481F"/>
+  <ellipse cx="32" cy="55" rx="6" ry="2.4" fill="rgba(0,0,0,0.25)"/>
+  <path d="M32 34 L46 52" stroke="#1a1a1a" stroke-width="7" stroke-linecap="round"/>
+  <path d="M32 34 L46 52" stroke="#D2D2D2" stroke-width="3.4" stroke-linecap="round"/>
+  <ellipse cx="32" cy="37" rx="19" ry="9" fill="#7A2F12"/>
+  <ellipse cx="32" cy="33" rx="19" ry="9" fill="#C1591F" stroke="#1a1a1a" stroke-width="2.5"/>
+  <ellipse cx="24" cy="27" rx="5.5" ry="3" fill="#fff" opacity="0.5" transform="rotate(-12 24 27)"/>
 </svg>
