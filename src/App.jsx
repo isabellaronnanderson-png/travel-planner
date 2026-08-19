@@ -266,13 +266,13 @@ const ICON_LIBRARY = {
 const ICON_LIBRARY_KEYS = Object.keys(ICON_LIBRARY);
 function iconFor(name) { return ICON_LIBRARY[name] || MapPin; }
 
-const CATEGORY_COLORS = ["#C1591F", "#2E5940", "#2C5F9E", "#B98A2E", "#8B4A9C", "#3C7A6E"];
+const CATEGORY_COLORS = ["#ED6725", "#335E53", "#271B0F", "#ECA945", "#4FA8D1", "#C4D93A"];
 
 function defaultCategories() {
   return [
-    { id: "cat-restaurant", name: "Restaurants", icon: "Utensils", color: "#C1591F" },
-    { id: "cat-spot", name: "Spots", icon: "MapPin", color: "#2E5940" },
-    { id: "cat-hotel", name: "Hotels", icon: "BedDouble", color: "#2C5F9E" },
+    { id: "cat-restaurant", name: "Restaurants", icon: "Utensils", color: "#ED6725" },
+    { id: "cat-spot", name: "Spots", icon: "MapPin", color: "#335E53" },
+    { id: "cat-hotel", name: "Hotels", icon: "BedDouble", color: "#271B0F" },
   ];
 }
 function catMeta(trip, categoryId) {
@@ -281,14 +281,14 @@ function catMeta(trip, categoryId) {
 }
 
 const CARD_GRADIENTS = [
-  "linear-gradient(135deg,#3C7A54,#1F3B2C)",
-  "linear-gradient(135deg,#D9622A,#8B3E15)",
-  "linear-gradient(135deg,#3E6690,#1B2E44)",
-  "linear-gradient(135deg,#B98A2E,#6B4E17)",
+  "linear-gradient(135deg,#335E53,#1a3a30)",
+  "linear-gradient(135deg,#ED6725,#a84515)",
+  "linear-gradient(135deg,#4FA8D1,#2a5c74)",
+  "linear-gradient(135deg,#ECA945,#8a6a1f)",
 ];
 
 // Classic pushpin colors — the darker collar/disc tone is derived automatically.
-const PIN_TONES = ["#E8402E", "#2F7A46", "#2C5F9E", "#E8A33D"];
+const PIN_TONES = ["#ED6725", "#335E53", "#271B0F", "#ECA945"];
 
 function shadeColor(hex, amt) {
   const n = parseInt(hex.slice(1), 16);
@@ -467,14 +467,16 @@ export default function App() {
         @import url('https://fonts.googleapis.com/css2?family=Bungee&family=Rye&family=Nunito:ital,wght@0,400;0,600;0,700;1,600&family=Caveat:wght@600;700&family=Space+Mono:wght@400;700&display=swap');
 
         .pm-root {
-          --forest: #2E5940;
-          --forest-light: #47825E;
-          --rust: #C1591F;
-          --rust-light: #D9622A;
-          --navy: #2C4F73;
-          --navy-light: #3E6690;
-          --gold: #B98A2E;
-          --bg: #F8E29C;
+          --forest: #335E53;
+          --forest-light: #4A7A6C;
+          --rust: #ED6725;
+          --rust-light: #F2854A;
+          --navy: #271B0F;
+          --navy-light: #4A3826;
+          --gold: #ECA945;
+          --lime: #C4D93A;
+          --sky: #D3E8F2;
+          --bg: #F5ECE3;
           --ink: #2A2019;
           --ink-soft: #5C4E3F;
           --card-shadow: rgba(0,0,0,0.28);
@@ -561,12 +563,80 @@ export default function App() {
   );
 }
 
+function MastheadPlaneIcon({ cx, cy, s, color }) {
+  const scale = s / 100;
+  return (
+    <g transform={`translate(${cx},${cy}) scale(${scale}) translate(-50,-50)`}>
+      <path d="M50 15 L54 30 L82 42 L82 47 L54 42 L51 62 L60 70 L60 74 L50 70 L40 74 L40 70 L49 62 L46 42 L18 47 L18 42 L46 30 Z" fill={color} />
+    </g>
+  );
+}
+function MastheadOvalMark({ w, h, color, city, sub }) {
+  return (
+    <svg width={w} height={h} viewBox="0 0 140 90" style={{ display: "block" }}>
+      <ellipse cx="70" cy="45" rx="65" ry="39" fill="none" stroke={color} strokeWidth="5" />
+      <ellipse cx="70" cy="45" rx="55" ry="30" fill="none" stroke={color} strokeWidth="1.8" />
+      <text x="70" y="25" textAnchor="middle" fontSize="14" fontWeight="700" fill={color} letterSpacing="1">{city}</text>
+      <MastheadPlaneIcon cx={70} cy={48} s={26} color={color} />
+      <text x="70" y="72" textAnchor="middle" fontSize="11" fontWeight="700" fill={color} letterSpacing="1.5">{sub}</text>
+    </svg>
+  );
+}
+function MastheadDiamondMark({ size, color, code }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100" style={{ display: "block" }}>
+      <polygon points="50,5 95,50 50,95 5,50" fill="none" stroke={color} strokeWidth="5" />
+      <MastheadPlaneIcon cx={50} cy={40} s={22} color={color} />
+      <text x="50" y="68" textAnchor="middle" fontSize="14" fontWeight="700" fill={color} letterSpacing="0.5">{code}</text>
+    </svg>
+  );
+}
+function MastheadCircleMark({ size, color, pathId, city, code }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100" style={{ display: "block" }}>
+      <defs><path id={pathId} d="M 50,50 m -34,0 a 34,34 0 1,1 68,0 a 34,34 0 1,1 -68,0" /></defs>
+      <circle cx="50" cy="50" r="42" fill="none" stroke={color} strokeWidth="5" />
+      <circle cx="50" cy="50" r="33" fill="none" stroke={color} strokeWidth="1.7" />
+      <text fontSize="10.5" fontWeight="700" fill={color} letterSpacing="1">
+        <textPath href={`#${pathId}`} startOffset="25%" textAnchor="middle">{city}</textPath>
+      </text>
+      <MastheadPlaneIcon cx={50} cy={50} s={22} color={color} />
+      <text x="50" y="81" textAnchor="middle" fontSize="10" fontWeight="700" fill={color} letterSpacing="1">{code}</text>
+    </svg>
+  );
+}
+function MastheadRoundRectMark({ w, h, color, city, sub }) {
+  return (
+    <svg width={w} height={h} viewBox="0 0 130 80" style={{ display: "block" }}>
+      <rect x="6" y="6" width="118" height="68" rx="16" fill="none" stroke={color} strokeWidth="5" />
+      <text x="65" y="25" textAnchor="middle" fontSize="14" fontWeight="700" fill={color} letterSpacing="1">{city}</text>
+      <MastheadPlaneIcon cx={65} cy={44} s={24} color={color} />
+      <text x="65" y="66" textAnchor="middle" fontSize="11" fontWeight="700" fill={color} letterSpacing="1">{sub}</text>
+    </svg>
+  );
+}
+
 function Masthead() {
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 22, padding: "30px 20px 20px" }}>
-      <Thumbtack color="#C1591F" style={{ transform: "rotate(-14deg)" }} />
-      <div className="pm-display" style={{ fontSize: 40, color: "var(--ink)" }}>Postmark</div>
-      <StampGraphic accent="#2E5940" index="masthead" topText="★ SAVE ★ PLAN ★" size={54} />
+    <div style={{ display: "flex", justifyContent: "center", padding: "40px 20px 30px" }}>
+      <div style={{ position: "relative", display: "inline-block", padding: "30px 48px" }}>
+        <div style={{ position: "absolute", top: -12, left: 0, opacity: 0.9, transform: "rotate(-14deg)", zIndex: 0 }}>
+          <MastheadOvalMark w={98} h={63} color="var(--gold)" city="PARIS" sub="ARRIVED" />
+        </div>
+        <div style={{ position: "absolute", top: -16, right: -8, opacity: 0.9, transform: "rotate(10deg)", zIndex: 0 }}>
+          <MastheadDiamondMark size={70} color="var(--rust)" code="NYC" />
+        </div>
+        <div style={{ position: "absolute", bottom: -18, left: 14, opacity: 0.9, transform: "rotate(9deg)", zIndex: 0 }}>
+          <MastheadCircleMark size={72} color="var(--navy)" pathId="pm-mast-circ-1" city="LONDON" code="LHR" />
+        </div>
+        <div style={{ position: "absolute", bottom: -16, right: 6, opacity: 0.9, transform: "rotate(-8deg)", zIndex: 0 }}>
+          <MastheadRoundRectMark w={88} h={56} color="var(--forest)" city="TOKYO" sub="ARRIVED" />
+        </div>
+        <div style={{ position: "absolute", top: 24, left: -32, opacity: 0.9, transform: "rotate(-4deg)", zIndex: 0 }}>
+          <MastheadCircleMark size={58} color="var(--lime)" pathId="pm-mast-circ-2" city="SYDNEY" code="SYD" />
+        </div>
+        <div className="pm-display" style={{ position: "relative", zIndex: 1, fontSize: 40, color: "var(--navy)" }}>Postmark</div>
+      </div>
     </div>
   );
 }
@@ -1717,19 +1787,30 @@ function DropZone({ id, children }) {
   );
 }
 
-function DraggablePin({ pin, categories, onClick }) {
+function DraggablePin({ pin, categories, days, expanded, onToggle, onSave, onRemove }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: pin.id, data: { type: "pin" } });
   const meta = catMeta({ categories }, pin.category);
   const Icon = iconFor(meta.icon);
   const style = { transform: CSS.Translate.toString(transform), opacity: isDragging ? 0.4 : 1, zIndex: isDragging ? 5 : "auto" };
   return (
-    <button
-      ref={setNodeRef} {...listeners} {...attributes} onClick={onClick}
-      className="pm-mono"
-      style={{ ...style, display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, padding: "5px 10px", borderRadius: 14, border: `1.5px solid ${meta.color}`, background: "#FFFDF9", color: "var(--ink)", cursor: "grab", touchAction: "none" }}
-    >
-      <Icon size={11} style={{ color: meta.color }} /> {pin.name}
-    </button>
+    <div ref={setNodeRef} style={{ ...style, display: "inline-flex", flexDirection: "column", background: "#FFFDF9", border: `1.5px solid ${meta.color}`, borderRadius: 10, overflow: "hidden" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <span {...listeners} {...attributes} style={{ cursor: "grab", touchAction: "none", display: "flex", padding: "6px 0 6px 8px", flexShrink: 0 }}><GripVertical size={11} style={{ opacity: 0.4 }} /></span>
+        <button
+          onClick={onToggle}
+          className="pm-mono"
+          style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, padding: "6px 10px 6px 4px", background: "none", border: "none", cursor: "pointer", color: "var(--ink)" }}
+        >
+          <Icon size={11} style={{ color: meta.color }} /> {pin.name}
+        </button>
+      </div>
+      {expanded && (
+        <div style={{ padding: 10, borderTop: "1px dashed rgba(46,43,38,0.15)", width: 230 }}>
+          <PinForm days={days} categories={categories} initial={pin} hideDayField onCancel={onToggle} onSubmit={(patch) => onSave(pin.id, patch)} submitLabel="Save" />
+          <button onClick={() => onRemove(pin.id)} style={{ marginTop: 4, background: "none", border: "none", color: "var(--ink-soft)", cursor: "pointer", fontSize: 11, padding: 0 }}>remove pin</button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1748,8 +1829,7 @@ function DraggableNote({ note, onChange, onRemove }) {
 function OverviewTab({ trip, updateTrip }) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
   const [filter, setFilter] = useState("all");
-  const [selectedPinId, setSelectedPinId] = useState(null);
-  const [editingPin, setEditingPin] = useState(null);
+  const [expandedPinId, setExpandedPinId] = useState(null);
   const [activeItem, setActiveItem] = useState(null);
 
   const days = trip.days;
@@ -1771,12 +1851,11 @@ function OverviewTab({ trip, updateTrip }) {
   function addNote() { updateTrip((t) => ({ ...t, notes: [...(t.notes || []), { id: uid(), text: "", dayId: null }] })); }
   function updateNote(id, text) { updateTrip((t) => ({ ...t, notes: t.notes.map((n) => (n.id === id ? { ...n, text } : n)) })); }
   function removeNote(id) { updateTrip((t) => ({ ...t, notes: t.notes.filter((n) => n.id !== id) })); }
-  function savePin(id, patch) { updateTrip((t) => ({ ...t, pins: t.pins.map((p) => (p.id === id ? { ...p, ...patch } : p)) })); setEditingPin(null); }
-  function removePin(id) { updateTrip((t) => ({ ...t, pins: t.pins.filter((p) => p.id !== id) })); setSelectedPinId(null); setEditingPin(null); }
+  function savePin(id, patch) { updateTrip((t) => ({ ...t, pins: t.pins.map((p) => (p.id === id ? { ...p, ...patch } : p)) })); setExpandedPinId(null); }
+  function removePin(id) { updateTrip((t) => ({ ...t, pins: t.pins.filter((p) => p.id !== id) })); setExpandedPinId(null); }
 
   const unscheduledPins = pins.filter((p) => !p.dayId);
   const unscheduledNotes = notes.filter((n) => !n.dayId);
-  const selectedPin = trip.pins.find((p) => p.id === selectedPinId);
   const activePin = activeItem && activeItem.type === "pin" ? trip.pins.find((p) => p.id === activeItem.id) : null;
   const activeNote = activeItem && activeItem.type === "note" ? notes.find((n) => n.id === activeItem.id) : null;
 
@@ -1798,7 +1877,7 @@ function OverviewTab({ trip, updateTrip }) {
           <DropZone id="unscheduled">
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               {unscheduledPins.map((pin) => (
-                <DraggablePin key={pin.id} pin={pin} categories={categories} onClick={() => { setSelectedPinId(pin.id); setEditingPin(null); }} />
+                <DraggablePin key={pin.id} pin={pin} categories={categories} days={days} expanded={expandedPinId === pin.id} onToggle={() => setExpandedPinId(expandedPinId === pin.id ? null : pin.id)} onSave={savePin} onRemove={removePin} />
               ))}
               {unscheduledNotes.map((note) => (
                 <DraggableNote key={note.id} note={note} onChange={(text) => updateNote(note.id, text)} onRemove={() => removeNote(note.id)} />
@@ -1822,7 +1901,7 @@ function OverviewTab({ trip, updateTrip }) {
                   <DropZone id={day.id}>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                       {dayPins.map((pin) => (
-                        <DraggablePin key={pin.id} pin={pin} categories={categories} onClick={() => { setSelectedPinId(pin.id); setEditingPin(null); }} />
+                        <DraggablePin key={pin.id} pin={pin} categories={categories} days={days} expanded={expandedPinId === pin.id} onToggle={() => setExpandedPinId(expandedPinId === pin.id ? null : pin.id)} onSave={savePin} onRemove={removePin} />
                       ))}
                       {dayNotes.map((note) => (
                         <DraggableNote key={note.id} note={note} onChange={(text) => updateNote(note.id, text)} onRemove={() => removeNote(note.id)} />
@@ -1849,17 +1928,6 @@ function OverviewTab({ trip, updateTrip }) {
           )}
         </DragOverlay>
       </DndContext>
-
-      {selectedPin && !editingPin && (
-        <div style={{ marginTop: 18 }}>
-          <PinDetail pin={selectedPin} day={days.find((d) => d.id === selectedPin.dayId)} categories={categories} onClose={() => setSelectedPinId(null)} onRemove={() => removePin(selectedPin.id)} onEdit={() => setEditingPin(selectedPin)} />
-        </div>
-      )}
-      {editingPin && (
-        <div style={{ marginTop: 18 }}>
-          <PinForm days={days} categories={categories} initial={editingPin} onCancel={() => setEditingPin(null)} onSubmit={(patch) => savePin(editingPin.id, patch)} submitLabel="Save changes" />
-        </div>
-      )}
     </div>
   );
 }
@@ -1872,32 +1940,6 @@ function FilterChip({ active, onClick, label, icon: Icon, color }) {
   );
 }
 
-function PinDetail({ pin, day, categories, onClose, onRemove, onEdit }) {
-  const meta = catMeta({ categories }, pin.category);
-  const Icon = iconFor(meta.icon);
-  return (
-    <div style={{ background: "#FFFDF9", border: `1.5px solid ${meta.color}`, borderRadius: 10, padding: 16 }}>
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ color: meta.color, display: "flex" }}><Icon size={18} /></span>
-          <div>
-            <div style={{ fontSize: 17, fontWeight: 700, color: "var(--ink)" }}>{pin.name}</div>
-            <div className="pm-mono" style={{ fontSize: 10, color: "var(--ink-soft)" }}>
-              {meta.name}{day ? ` · day ${formatDateShort(day.date)} · ${day.city}` : " · unscheduled"}
-            </div>
-          </div>
-        </div>
-        <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)" }} aria-label="Close"><X size={15} /></button>
-      </div>
-      {pin.note && <div style={{ marginTop: 10, fontSize: 14, color: "var(--ink)" }}>{pin.note}</div>}
-      {pin.link && <a href={pin.link} target="_blank" rel="noreferrer" className="pm-mono" style={{ display: "inline-flex", alignItems: "center", gap: 4, marginTop: 8, fontSize: 12, color: "var(--navy)" }}><Link2 size={12} /> {pin.link}</a>}
-      <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-        <button className="pm-btn pm-btn-ghost" style={{ color: "var(--ink)", borderColor: "rgba(46,43,38,0.3)" }} onClick={onEdit}><PenLine size={12} /> edit</button>
-        <button className="pm-btn pm-btn-ghost" style={{ color: "var(--ink)", borderColor: "rgba(46,43,38,0.3)" }} onClick={onRemove}><Trash2 size={12} /> remove pin</button>
-      </div>
-    </div>
-  );
-}
 
 function PinForm({ days, categories, onCancel, onSubmit, initial, submitLabel, hideDayField }) {
   const [name, setName] = useState(initial ? initial.name : "");
