@@ -1163,10 +1163,10 @@ function stashCount(day) {
 }
 
 const ACT_TINTS = [
-  { bg: "rgba(193,89,31,0.10)", edge: "#C1591F" },
-  { bg: "rgba(46,89,64,0.10)", edge: "#2E5940" },
-  { bg: "rgba(44,79,115,0.10)", edge: "#2C4F73" },
-  { bg: "rgba(185,138,46,0.12)", edge: "#B98A2E" },
+  { bg: "rgba(237,103,37,0.10)", edge: "#ED6725" },
+  { bg: "rgba(51,94,83,0.10)", edge: "#335E53" },
+  { bg: "rgba(79,168,209,0.14)", edge: "#4FA8D1" },
+  { bg: "rgba(236,169,69,0.14)", edge: "#ECA945" },
 ];
 
 function parseDragData(e) {
@@ -1972,27 +1972,25 @@ function PinForm({ days, categories, onCancel, onSubmit, initial, submitLabel, h
 
   return (
     <div style={{ background: "rgba(185,138,46,0.10)", border: "1px dashed var(--gold)", borderRadius: 10, padding: 14, marginBottom: 16, display: "grid", gap: 10 }}>
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <div style={{ flex: "2 1 160px" }}>
-          <span className="pm-label">Name {placesReady && <span style={{ opacity: 0.6 }}>(search enabled)</span>}</span>
-          <input ref={nameInputRef} className="pm-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Place name" />
-        </div>
-        <div style={{ flex: "1 1 120px" }}>
-          <span className="pm-label">Category</span>
-          <select className="pm-select" value={category} onChange={(e) => setCategory(e.target.value)}>
-            {categories.map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
+      <div>
+        <span className="pm-label">Name {placesReady && <span style={{ opacity: 0.6 }}>(search enabled)</span>}</span>
+        <input ref={nameInputRef} className="pm-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Place name" />
+      </div>
+      <div>
+        <span className="pm-label">Category</span>
+        <select className="pm-select" value={category} onChange={(e) => setCategory(e.target.value)}>
+          {categories.map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
+        </select>
+      </div>
+      {!hideDayField && (
+        <div>
+          <span className="pm-label">Which day</span>
+          <select className="pm-select" value={dayId} onChange={(e) => setDayId(e.target.value)}>
+            <option value="">Unscheduled</option>
+            {days.map((d, i) => (<option key={d.id} value={d.id}>{i + 1}. {d.city || formatDateShort(d.date)}</option>))}
           </select>
         </div>
-        {!hideDayField && (
-          <div style={{ flex: "1 1 160px" }}>
-            <span className="pm-label">Which day</span>
-            <select className="pm-select" value={dayId} onChange={(e) => setDayId(e.target.value)}>
-              <option value="">Unscheduled</option>
-              {days.map((d, i) => (<option key={d.id} value={d.id}>{i + 1}. {d.city || formatDateShort(d.date)}</option>))}
-            </select>
-          </div>
-        )}
-      </div>
+      )}
       <div>
         <span className="pm-label">Note</span>
         <input className="pm-input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Why it's on the list" />
@@ -2229,7 +2227,7 @@ function StopsTab({ trip, updateTrip, onPlan }) {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
           {galleryPins.map((pin) => {
             if (editingPinId === pin.id) {
-              return <div key={pin.id} style={{ gridColumn: "1 / -1" }}><PinForm days={trip.days} categories={categories} initial={pin} onCancel={() => setEditingPinId(null)} onSubmit={(patch) => savePin(pin.id, patch)} submitLabel="Save changes" /></div>;
+              return <div key={pin.id}><PinForm days={trip.days} categories={categories} initial={pin} onCancel={() => setEditingPinId(null)} onSubmit={(patch) => savePin(pin.id, patch)} submitLabel="Save changes" /></div>;
             }
             const meta = catMeta(trip, pin.category);
             const Icon = iconFor(meta.icon);
