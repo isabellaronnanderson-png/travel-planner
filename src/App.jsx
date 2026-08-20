@@ -1330,7 +1330,7 @@ function ItineraryTab({ trip, expandedDayIds, toggleDay, updateDay, reorderDays,
                         <div className="pm-mono" style={{ flexShrink: 0, marginTop: 14, width: 28, height: 28, borderRadius: "50%", background: "var(--forest)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11 }}>
                           {i + 1}
                         </div>
-                        <div style={{ flex: 1, background: "#FFFDF9", border: isCrossDayTarget ? "1.5px solid var(--forest)" : "1.5px solid rgba(46,43,38,0.12)", borderRadius: 12, boxShadow: isCrossDayTarget ? "0 0 0 3px rgba(46,89,64,0.15)" : "0 2px 8px rgba(0,0,0,0.25)" }}>
+                        <div style={{ flex: 1, borderRadius: 12, overflow: "hidden", boxShadow: isCrossDayTarget ? "0 0 0 3px rgba(46,89,64,0.35)" : "0 2px 8px rgba(0,0,0,0.25)" }}>
                           <DayCardBody
                             day={day} expanded={expandedDayIds.has(day.id)} onToggle={() => toggleDay(day.id)} updateDay={(fn) => updateDay(day.id, fn)} hideCity
                             dragHandleProps={handleProps}
@@ -1343,6 +1343,8 @@ function ItineraryTab({ trip, expandedDayIds, toggleDay, updateDay, reorderDays,
                             onUnassignPin={unassignPin}
                             onUnassignNote={unassignNote}
                             onUpdateNoteText={updateNoteText}
+                            pairing={i % 2 === 0 ? PAIR_DUOTONE : PAIR_ALPINE}
+                            seed={i + 1}
                           />
                         </div>
                       </div>
@@ -1388,7 +1390,7 @@ function ItineraryTab({ trip, expandedDayIds, toggleDay, updateDay, reorderDays,
                         <div className="pm-mono" style={{ position: "absolute", left: -30, top: 14, width: 26, height: 26, borderRadius: "50%", background: "#3C2A1A", border: "2px solid var(--bg)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11 }}>
                           {i + 1}
                         </div>
-                        <div style={{ background: "#FFFDF9", border: isCrossDayTarget ? "1.5px solid var(--forest)" : "1.5px solid rgba(46,43,38,0.12)", borderRadius: 12, boxShadow: isCrossDayTarget ? "0 0 0 3px rgba(46,89,64,0.15)" : "0 2px 8px rgba(0,0,0,0.25)" }}>
+                        <div style={{ borderRadius: 12, overflow: "hidden", boxShadow: isCrossDayTarget ? "0 0 0 3px rgba(46,89,64,0.35)" : "0 2px 8px rgba(0,0,0,0.25)" }}>
                           <DayCardBody
                             day={day} expanded={expandedDayIds.has(day.id)} onToggle={() => toggleDay(day.id)} updateDay={(fn) => updateDay(day.id, fn)}
                             dragHandleProps={handleProps}
@@ -1401,6 +1403,8 @@ function ItineraryTab({ trip, expandedDayIds, toggleDay, updateDay, reorderDays,
                             onUnassignPin={unassignPin}
                             onUnassignNote={unassignNote}
                             onUpdateNoteText={updateNoteText}
+                            pairing={i % 2 === 0 ? PAIR_DUOTONE : PAIR_ALPINE}
+                            seed={i + 1}
                           />
                         </div>
                       </div>
@@ -1482,14 +1486,17 @@ function SectionHeader({ section, onUpdate, onRemove }) {
   );
 }
 
-function DragHandleStack({ dragHandleProps, onUp, onDown, canUp, canDown, size }) {
+function DragHandleStack({ dragHandleProps, onUp, onDown, canUp, canDown, size, light }) {
   const s = size || 13;
+  const col = light ? "#fff" : "var(--ink)";
+  const gripCol = light ? "rgba(255,255,255,0.75)" : "var(--ink-soft)";
+  const gripOpacity = light ? 1 : 0.4;
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0, gap: 1 }}>
       <button
         onClick={(e) => { e.stopPropagation(); canUp && onUp(); }}
         disabled={!canUp}
-        style={{ background: "none", border: "none", cursor: canUp ? "pointer" : "default", opacity: canUp ? 0.6 : 0.2, padding: 0, lineHeight: 0, color: "var(--ink)" }}
+        style={{ background: "none", border: "none", cursor: canUp ? "pointer" : "default", opacity: canUp ? (light ? 0.85 : 0.6) : 0.25, padding: 0, lineHeight: 0, color: col }}
         aria-label="Move up"
       ><ChevronUp size={s} /></button>
       <span
@@ -1497,12 +1504,12 @@ function DragHandleStack({ dragHandleProps, onUp, onDown, canUp, canDown, size }
         onClick={(e) => e.stopPropagation()}
         style={{ display: "flex", alignItems: "center", justifyContent: "center", cursor: "grab", touchAction: "none", padding: "2px 0" }}
       >
-        <GripVertical size={s} style={{ color: "var(--ink-soft)", opacity: 0.4 }} />
+        <GripVertical size={s} style={{ color: gripCol, opacity: gripOpacity }} />
       </span>
       <button
         onClick={(e) => { e.stopPropagation(); canDown && onDown(); }}
         disabled={!canDown}
-        style={{ background: "none", border: "none", cursor: canDown ? "pointer" : "default", opacity: canDown ? 0.6 : 0.2, padding: 0, lineHeight: 0, color: "var(--ink)" }}
+        style={{ background: "none", border: "none", cursor: canDown ? "pointer" : "default", opacity: canDown ? (light ? 0.85 : 0.6) : 0.25, padding: 0, lineHeight: 0, color: col }}
         aria-label="Move down"
       ><ChevronDown size={s} /></button>
     </div>
@@ -1563,7 +1570,7 @@ function SimpleStopCard({ pairing, seed, dragHandleProps, titleValue, onTitleCha
 }
 
 
-function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, dragHandleProps, canMoveUp, canMoveDown, onMoveUp, onMoveDown, activeAct, overAct, dayPins, dayNotes, categories, onUnassignPin, onUnassignNote, onUpdateNoteText }) {
+function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, dragHandleProps, canMoveUp, canMoveDown, onMoveUp, onMoveDown, activeAct, overAct, dayPins, dayNotes, categories, onUnassignPin, onUnassignNote, onUpdateNoteText, pairing, seed }) {
   const [expandedActIds, setExpandedActIds] = useState(() => new Set());
   const [expandedPlannedIds, setExpandedPlannedIds] = useState(() => new Set());
 
@@ -1587,29 +1594,30 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, dragHandleP
   const activeActivityIndex = activeIsMine ? activities.findIndex((a) => a.id === activeAct.id) : -1;
   const overActivityIndex = overIsMine ? activities.findIndex((a) => a.id === overAct.id) : -1;
   const plannedCount = (dayPins ? dayPins.length : 0) + (dayNotes ? dayNotes.length : 0);
+  const p = pairing || PAIR_ALPINE;
 
   return (
     <div>
-      <div onClick={onToggle} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", cursor: "pointer", gap: 12 }}>
+      <Textured color={p.color} base={p.base} seed={seed} onClick={onToggle} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", cursor: "pointer", gap: 12, borderRadius: expanded ? "12px 12px 0 0" : 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-          <DragHandleStack dragHandleProps={dragHandleProps} onUp={onMoveUp} onDown={onMoveDown} canUp={canMoveUp} canDown={canMoveDown} />
+          <DragHandleStack dragHandleProps={dragHandleProps} onUp={onMoveUp} onDown={onMoveDown} canUp={canMoveUp} canDown={canMoveDown} light />
           <div style={{ minWidth: 0 }}>
-            <div className="pm-mono" style={{ fontSize: 11, color: "var(--ink-soft)" }}>{formatDate(day.date)}</div>
-            <div style={{ fontSize: 17, fontWeight: 700, marginTop: 2 }}>{hideCity ? (day.blurb || "Untitled day") : (day.city || "Untitled stop")}</div>
+            <div className="pm-mono" style={{ fontSize: 11, color: "rgba(255,255,255,0.8)" }}>{formatDate(day.date)}</div>
+            <div style={{ fontSize: 17, fontWeight: 700, marginTop: 2, color: "#fff" }}>{hideCity ? (day.blurb || "Untitled day") : (day.city || "Untitled stop")}</div>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
           {plannedCount > 0 && (
-            <span className="pm-mono" style={{ fontSize: 10, color: "#fff", background: "var(--forest)", borderRadius: 10, padding: "3px 8px", fontWeight: 700 }}>
+            <span className="pm-mono" style={{ fontSize: 10, color: p.color, background: "#fff", borderRadius: 10, padding: "3px 8px", fontWeight: 700 }}>
               {plannedCount} planned
             </span>
           )}
-          <ChevronDown size={16} style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.15s ease" }} />
+          <ChevronDown size={16} style={{ color: "#fff", transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.15s ease" }} />
         </div>
-      </div>
+      </Textured>
 
       {expanded && (
-        <div style={{ padding: "0 16px 18px", borderTop: "1px dashed rgba(46,43,38,0.18)" }}>
+        <div style={{ padding: "0 16px 18px", background: "#FFFDF9", border: "1.5px solid rgba(46,43,38,0.12)", borderTop: "none", borderRadius: "0 0 12px 12px" }}>
           <div style={{ marginTop: 14 }}>
             <input className="pm-input" value={titleValue} onChange={(e) => updateDay((d) => ({ ...d, [titleField]: arrowify(e.target.value) }))} placeholder="" />
           </div>
@@ -1805,7 +1813,7 @@ function StashSection({ title, icon: Icon, items, renderItem, onAdd, onRemove, f
 function DropZone({ id, children }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
-    <div ref={setNodeRef} style={{ border: `2px dashed ${isOver ? "var(--rust)" : "rgba(30,58,44,0.35)"}`, borderRadius: 10, padding: 10, minHeight: 46, background: isOver ? "rgba(237,103,37,0.10)" : "rgba(30,58,44,0.05)", transition: "background 0.1s ease, border-color 0.1s ease" }}>
+    <div ref={setNodeRef} style={{ border: `2px solid ${isOver ? "var(--rust)" : "rgba(30,58,44,0.4)"}`, borderRadius: 10, padding: 10, minHeight: 46, background: isOver ? "rgba(237,103,37,0.16)" : "rgba(30,58,44,0.14)", transition: "background 0.1s ease, border-color 0.1s ease" }}>
       {children}
     </div>
   );
