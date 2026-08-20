@@ -467,10 +467,14 @@ export default function App() {
         @import url('https://fonts.googleapis.com/css2?family=Bungee&family=Rye&family=Nunito:ital,wght@0,400;0,600;0,700;1,600&family=Caveat:wght@600;700&family=Space+Mono:wght@400;700&display=swap');
 
         .pm-root {
-          --forest: #335E53;
-          --forest-light: #4A7A6C;
+          --forest: #1E3A2C;
+          --forest-light: #2E5940;
+          --forest-deep: #0E1F17;
+          --forest-sky: #C9E2EF;
           --rust: #ED6725;
           --rust-light: #F2854A;
+          --rust-deep: #A8481F;
+          --rust-pink: #F3C7B8;
           --navy: #271B0F;
           --navy-light: #4A3826;
           --gold: #ECA945;
@@ -508,8 +512,8 @@ export default function App() {
           transition: background 0.15s ease, color 0.15s ease;
         }
         .pm-btn:hover { background: var(--forest); border-color: var(--forest); color: #fff; }
-        .pm-btn-solid { background: var(--forest); border-color: var(--forest); color: #fff; }
-        .pm-btn-solid:hover { background: var(--forest-light); border-color: var(--forest-light); color: #fff; }
+        .pm-btn-solid { background: var(--rust); border-color: var(--rust); color: #fff; }
+        .pm-btn-solid:hover { background: var(--rust-light); border-color: var(--rust-light); color: #fff; }
         .pm-btn-ghost { border-color: rgba(42,32,25,0.35); }
         .pm-input, .pm-textarea, .pm-select {
           font-family: 'Nunito', sans-serif;
@@ -621,22 +625,50 @@ function Masthead() {
     <div style={{ display: "flex", justifyContent: "center", padding: "40px 20px 30px" }}>
       <div style={{ position: "relative", display: "inline-block", padding: "30px 48px" }}>
         <div style={{ position: "absolute", top: -12, left: 0, opacity: 0.9, transform: "rotate(-14deg)", zIndex: 0 }}>
-          <MastheadOvalMark w={98} h={63} color="var(--gold)" city="PARIS" sub="ARRIVED" />
+          <MastheadOvalMark w={98} h={63} color="var(--rust)" city="PARIS" sub="ARRIVED" />
         </div>
         <div style={{ position: "absolute", top: -16, right: -8, opacity: 0.9, transform: "rotate(10deg)", zIndex: 0 }}>
-          <MastheadDiamondMark size={70} color="var(--rust)" code="NYC" />
+          <MastheadDiamondMark size={70} color="var(--forest)" code="NYC" />
         </div>
         <div style={{ position: "absolute", bottom: -18, left: 14, opacity: 0.9, transform: "rotate(9deg)", zIndex: 0 }}>
-          <MastheadCircleMark size={72} color="var(--navy)" pathId="pm-mast-circ-1" city="LONDON" code="LHR" />
+          <MastheadCircleMark size={72} color="var(--rust)" pathId="pm-mast-circ-1" city="LONDON" code="LHR" />
         </div>
         <div style={{ position: "absolute", bottom: -16, right: 6, opacity: 0.9, transform: "rotate(-8deg)", zIndex: 0 }}>
           <MastheadRoundRectMark w={88} h={56} color="var(--forest)" city="TOKYO" sub="ARRIVED" />
         </div>
         <div style={{ position: "absolute", top: 24, left: -32, opacity: 0.9, transform: "rotate(-4deg)", zIndex: 0 }}>
-          <MastheadCircleMark size={58} color="var(--lime)" pathId="pm-mast-circ-2" city="SYDNEY" code="SYD" />
+          <MastheadCircleMark size={58} color="var(--rust)" pathId="pm-mast-circ-2" city="SYDNEY" code="SYD" />
         </div>
         <div className="pm-display" style={{ position: "relative", zIndex: 1, fontSize: 40, color: "var(--navy)" }}>Postmark</div>
       </div>
+    </div>
+  );
+}
+
+let texturedIdCounter = 0;
+const PAIR_DUOTONE = { color: "#ED6725", base: "#A8481F", accentBg: "#F3C7B8", accentText: "#A8481F" };
+const PAIR_ALPINE = { color: "#1E3A2C", base: "#0E1F17", accentBg: "#C9E2EF", accentText: "#1E3A2C" };
+function Textured({ color, base, seed, style, className, children, radius, onClick }) {
+  const idRef = useRef(null);
+  if (idRef.current === null) { idRef.current = `tex-${texturedIdCounter++}`; }
+  const id = idRef.current;
+  const contrast = 9;
+  const offset = -(contrast / 2 - 0.15);
+  const s = typeof seed === "number" ? seed : 4;
+  return (
+    <div className={className} onClick={onClick} style={{ position: "relative", overflow: "hidden", borderRadius: radius, ...style }}>
+      <svg viewBox="0 0 200 200" preserveAspectRatio="none" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block" }}>
+        <defs>
+          <filter id={`f-${id}`} x="-30%" y="-30%" width="160%" height="160%">
+            <feTurbulence type="turbulence" baseFrequency="0.06" numOctaves="1" seed={s} stitchTiles="stitch" result="n" />
+            <feColorMatrix in="n" type="matrix" values={`0 0 0 ${contrast} ${offset}  0 0 0 ${contrast} ${offset}  0 0 0 ${contrast} ${offset}  0 0 0 ${contrast} ${offset}`} />
+          </filter>
+          <mask id={`m-${id}`}><rect width="200" height="200" fill="white" filter={`url(#f-${id})`} /></mask>
+        </defs>
+        <rect width="200" height="200" fill={base} />
+        <rect width="200" height="200" fill={color} mask={`url(#m-${id})`} />
+      </svg>
+      <div style={{ position: "relative", zIndex: 1 }}>{children}</div>
     </div>
   );
 }
@@ -1162,13 +1194,6 @@ function stashCount(day) {
   return day.stash.hotels.length + day.stash.spots.length + day.stash.codes.length;
 }
 
-const ACT_TINTS = [
-  { bg: "rgba(237,103,37,0.10)", edge: "#ED6725" },
-  { bg: "rgba(51,94,83,0.10)", edge: "#335E53" },
-  { bg: "rgba(79,168,209,0.14)", edge: "#4FA8D1" },
-  { bg: "rgba(236,169,69,0.14)", edge: "#ECA945" },
-];
-
 function parseDragData(e) {
   try { return JSON.parse(e.dataTransfer.getData("text/plain")); } catch (err) { return null; }
 }
@@ -1485,11 +1510,10 @@ function DragHandleStack({ dragHandleProps, onUp, onDown, canUp, canDown, size }
 }
 
 function ActivityDragPreview({ activity, index }) {
-  const tint = ACT_TINTS[index % ACT_TINTS.length];
   return (
-    <div style={{ background: tint.bg, borderLeft: `3px solid ${tint.edge}`, border: "1px solid rgba(46,43,38,0.2)", borderRadius: 8, padding: 10, boxShadow: "0 10px 24px rgba(0,0,0,0.3)", minWidth: 200, cursor: "grabbing" }}>
-      <div className="pm-mono" style={{ fontSize: 9, color: "var(--ink-soft)", opacity: 0.75 }}>STOP {index + 1}</div>
-      <div style={{ fontSize: 13, fontWeight: 700, marginTop: 2 }}>{activity.where || "Untitled stop"}</div>
+    <div style={{ background: PAIR_DUOTONE.color, borderRadius: 8, padding: 10, boxShadow: "0 10px 24px rgba(0,0,0,0.3)", minWidth: 200, cursor: "grabbing" }}>
+      <div className="pm-mono" style={{ fontSize: 9, color: "rgba(255,255,255,0.75)" }}>STOP {index + 1}</div>
+      <div style={{ fontSize: 13, fontWeight: 700, marginTop: 2, color: "#fff" }}>{activity.where || "Untitled stop"}</div>
     </div>
   );
 }
@@ -1505,40 +1529,39 @@ function SortableActivity({ id, dayId, children }) {
   return <div ref={setNodeRef} style={style}>{children({ handleProps: { ...attributes, ...listeners } })}</div>;
 }
 
-function SimpleStopCard({ tint, dragHandleProps, titleValue, onTitleChange, titleReadOnly, icon: Icon, iconColor, expanded, onToggleExpand, expandedContent, onRemove }) {
+function SimpleStopCard({ pairing, seed, dragHandleProps, titleValue, onTitleChange, titleReadOnly, icon: Icon, expanded, onToggleExpand, expandedContent, onRemove }) {
   return (
-    <div style={{ marginBottom: 8, background: tint.bg, borderLeft: `3px solid ${tint.edge}`, border: "1px solid rgba(46,43,38,0.1)", borderRadius: 8, padding: "8px 10px" }}>
+    <Textured color={pairing.color} base={pairing.base} seed={seed} radius={8} style={{ marginBottom: 8, padding: "8px 10px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         {dragHandleProps && (
           <span {...dragHandleProps} style={{ cursor: "grab", touchAction: "none", display: "flex", flexShrink: 0 }}>
-            <GripVertical size={12} style={{ opacity: 0.4 }} />
+            <GripVertical size={12} style={{ opacity: 0.7, color: "#fff" }} />
           </span>
         )}
-        {Icon && <span style={{ color: iconColor, display: "flex", flexShrink: 0 }}><Icon size={13} /></span>}
+        {Icon && <span style={{ color: "#fff", display: "flex", flexShrink: 0 }}><Icon size={13} /></span>}
         {titleReadOnly ? (
-          <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{titleValue || "Untitled"}</span>
+          <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{titleValue || "Untitled"}</span>
         ) : (
           <input
             className="pm-input"
-            style={{ flex: 1, fontSize: 13, padding: "5px 8px", background: "rgba(255,255,255,0.5)", border: "none" }}
+            style={{ flex: 1, fontSize: 13, padding: "5px 8px", background: "rgba(255,255,255,0.85)", border: "none", color: "var(--ink)" }}
             value={titleValue}
             onChange={(e) => onTitleChange(arrowify(e.target.value))}
             placeholder=""
           />
         )}
         {expandedContent && (
-          <button onClick={onToggleExpand} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)", display: "flex", flexShrink: 0 }} aria-label="Expand">
+          <button onClick={onToggleExpand} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.85)", display: "flex", flexShrink: 0 }} aria-label="Expand">
             <ChevronDown size={13} style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.15s ease" }} />
           </button>
         )}
-        {onRemove && <button onClick={onRemove} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)", flexShrink: 0 }} aria-label="Remove"><X size={13} /></button>}
+        {onRemove && <button onClick={onRemove} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.85)", flexShrink: 0 }} aria-label="Remove"><X size={13} /></button>}
       </div>
-      {expanded && expandedContent && <div style={{ marginTop: 6 }}>{expandedContent}</div>}
-    </div>
+      {expanded && expandedContent && <div style={{ marginTop: 6, background: "rgba(255,255,255,0.92)", borderRadius: 6, padding: 8 }}>{expandedContent}</div>}
+    </Textured>
   );
 }
 
-const PLANNED_TINT = { bg: "rgba(185,138,46,0.09)", edge: "var(--gold)" };
 
 function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, dragHandleProps, canMoveUp, canMoveDown, onMoveUp, onMoveDown, activeAct, overAct, dayPins, dayNotes, categories, onUnassignPin, onUnassignNote, onUpdateNoteText }) {
   const [expandedActIds, setExpandedActIds] = useState(() => new Set());
@@ -1577,7 +1600,7 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, dragHandleP
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
           {plannedCount > 0 && (
-            <span className="pm-mono" style={{ fontSize: 10, color: "var(--gold)", border: "1px solid var(--gold)", borderRadius: 10, padding: "2px 7px" }}>
+            <span className="pm-mono" style={{ fontSize: 10, color: "#fff", background: "var(--forest)", borderRadius: 10, padding: "3px 8px", fontWeight: 700 }}>
               {plannedCount} planned
             </span>
           )}
@@ -1601,9 +1624,9 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, dragHandleP
                 return (
                   <SimpleStopCard
                     key={pin.id}
-                    tint={PLANNED_TINT}
+                    pairing={PAIR_ALPINE}
+                    seed={9}
                     icon={Icon}
-                    iconColor={meta.color}
                     titleValue={pin.name}
                     titleReadOnly
                     expanded={isExp}
@@ -1624,7 +1647,8 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, dragHandleP
                 return (
                   <SimpleStopCard
                     key={note.id}
-                    tint={PLANNED_TINT}
+                    pairing={PAIR_ALPINE}
+                    seed={13}
                     titleValue={note.text}
                     onTitleChange={(v) => onUpdateNoteText && onUpdateNoteText(note.id, v)}
                     expanded={isExp}
@@ -1643,7 +1667,6 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, dragHandleP
             <div className="pm-mono" style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--ink-soft)", marginBottom: 8 }}>Activities</div>
             <SortableContext items={activities.map((a) => a.id)} strategy={verticalListSortingStrategy}>
               {activities.map((a, idx) => {
-                const tint = ACT_TINTS[idx % ACT_TINTS.length];
                 const isExp = expandedActIds.has(a.id);
                 return (
                   <React.Fragment key={a.id}>
@@ -1651,7 +1674,8 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, dragHandleP
                     <SortableActivity id={a.id} dayId={day.id}>
                       {({ handleProps }) => (
                         <SimpleStopCard
-                          tint={tint}
+                          pairing={PAIR_DUOTONE}
+                          seed={idx + 2}
                           dragHandleProps={handleProps}
                           titleValue={a.where}
                           onTitleChange={(v) => updateActivity(a.id, { where: v })}
@@ -1660,7 +1684,7 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, dragHandleP
                           expandedContent={
                             <textarea
                               className="pm-textarea"
-                              style={{ fontSize: 13, minHeight: 50, background: "rgba(255,255,255,0.5)", border: "none" }}
+                              style={{ fontSize: 13, minHeight: 50, background: "#FAF8F4", border: "1.5px solid rgba(46,43,38,0.15)" }}
                               value={a.text}
                               onChange={(e) => updateActivity(a.id, { text: arrowify(e.target.value) })}
                               placeholder=""
@@ -1781,7 +1805,7 @@ function StashSection({ title, icon: Icon, items, renderItem, onAdd, onRemove, f
 function DropZone({ id, children }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
-    <div ref={setNodeRef} style={{ border: `2px dashed ${isOver ? "var(--forest)" : "rgba(42,32,25,0.2)"}`, borderRadius: 10, padding: 10, minHeight: 46, background: isOver ? "rgba(46,89,64,0.07)" : "transparent", transition: "background 0.1s ease, border-color 0.1s ease" }}>
+    <div ref={setNodeRef} style={{ border: `2px dashed ${isOver ? "var(--rust)" : "rgba(30,58,44,0.35)"}`, borderRadius: 10, padding: 10, minHeight: 46, background: isOver ? "rgba(237,103,37,0.10)" : "rgba(30,58,44,0.05)", transition: "background 0.1s ease, border-color 0.1s ease" }}>
       {children}
     </div>
   );
@@ -1793,19 +1817,21 @@ function DraggablePin({ pin, categories, days, expanded, onToggle, onSave, onRem
   const Icon = iconFor(meta.icon);
   const style = { transform: CSS.Translate.toString(transform), opacity: isDragging ? 0.4 : 1, zIndex: isDragging ? 5 : "auto" };
   return (
-    <div ref={setNodeRef} style={{ ...style, display: "inline-flex", flexDirection: "column", background: "#FFFDF9", border: `1.5px solid ${meta.color}`, borderRadius: 10, overflow: "hidden" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-        <span {...listeners} {...attributes} style={{ cursor: "grab", touchAction: "none", display: "flex", padding: "6px 0 6px 8px", flexShrink: 0 }}><GripVertical size={11} style={{ opacity: 0.4 }} /></span>
-        <button
-          onClick={onToggle}
-          className="pm-mono"
-          style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, padding: "6px 10px 6px 4px", background: "none", border: "none", cursor: "pointer", color: "var(--ink)" }}
-        >
-          <Icon size={11} style={{ color: meta.color }} /> {pin.name}
-        </button>
-      </div>
+    <div ref={setNodeRef} style={{ ...style, display: "inline-flex", flexDirection: "column", borderRadius: 10, overflow: "hidden" }}>
+      <Textured color={PAIR_ALPINE.color} base={PAIR_ALPINE.base} seed={7}>
+        <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+          <span {...listeners} {...attributes} style={{ cursor: "grab", touchAction: "none", display: "flex", padding: "6px 0 6px 8px", flexShrink: 0 }}><GripVertical size={11} style={{ opacity: 0.6, color: "#fff" }} /></span>
+          <button
+            onClick={onToggle}
+            className="pm-mono"
+            style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, padding: "6px 10px 6px 4px", background: "none", border: "none", cursor: "pointer", color: "#fff" }}
+          >
+            <Icon size={11} style={{ color: "#fff" }} /> {pin.name}
+          </button>
+        </div>
+      </Textured>
       {expanded && (
-        <div style={{ padding: 10, borderTop: "1px dashed rgba(46,43,38,0.15)", width: 230 }}>
+        <div style={{ padding: 10, background: "#FFFDF9", borderTop: "1px solid rgba(46,43,38,0.12)", width: 230 }}>
           <PinForm days={days} categories={categories} initial={pin} hideDayField onCancel={onToggle} onSubmit={(patch) => onSave(pin.id, patch)} submitLabel="Save" />
           <button onClick={() => onRemove(pin.id)} style={{ marginTop: 4, background: "none", border: "none", color: "var(--ink-soft)", cursor: "pointer", fontSize: 11, padding: 0 }}>remove pin</button>
         </div>
@@ -1818,10 +1844,12 @@ function DraggableNote({ note, onChange, onRemove }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: note.id, data: { type: "note" } });
   const style = { transform: CSS.Translate.toString(transform), opacity: isDragging ? 0.4 : 1, zIndex: isDragging ? 5 : "auto" };
   return (
-    <div ref={setNodeRef} style={{ ...style, display: "inline-flex", alignItems: "center", gap: 4, background: "rgba(185,138,46,0.14)", border: "1.5px dashed var(--gold)", borderRadius: 14, padding: "4px 6px 4px 8px" }}>
-      <span {...listeners} {...attributes} style={{ cursor: "grab", touchAction: "none", display: "flex" }}><GripVertical size={11} style={{ opacity: 0.5 }} /></span>
-      <input value={note.text} onChange={(e) => onChange(e.target.value)} placeholder="Note…" className="pm-mono" style={{ border: "none", background: "transparent", fontSize: 11, outline: "none", width: 110, color: "var(--ink)" }} />
-      <button onClick={onRemove} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)", display: "flex" }} aria-label="Remove note"><X size={11} /></button>
+    <div ref={setNodeRef} style={style}>
+      <Textured color={PAIR_ALPINE.color} base={PAIR_ALPINE.base} seed={11} radius={14} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 6px 4px 8px" }}>
+        <span {...listeners} {...attributes} style={{ cursor: "grab", touchAction: "none", display: "flex" }}><GripVertical size={11} style={{ opacity: 0.6, color: "#fff" }} /></span>
+        <input value={note.text} onChange={(e) => onChange(e.target.value)} placeholder="Note…" className="pm-mono" style={{ border: "none", background: "transparent", fontSize: 11, outline: "none", width: 110, color: "#fff" }} />
+        <button onClick={onRemove} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.8)", display: "flex" }} aria-label="Remove note"><X size={11} /></button>
+      </Textured>
     </div>
   );
 }
@@ -1941,7 +1969,7 @@ function FilterChip({ active, onClick, label, icon: Icon, color }) {
 }
 
 
-function PinForm({ days, categories, onCancel, onSubmit, initial, submitLabel, hideDayField }) {
+function PinForm({ days, categories, onCancel, onSubmit, initial, submitLabel, hideDayField, title }) {
   const [name, setName] = useState(initial ? initial.name : "");
   const [category, setCategory] = useState(initial && initial.category ? initial.category : (categories[0] ? categories[0].id : ""));
   const [dayId, setDayId] = useState(initial && initial.dayId ? initial.dayId : "");
@@ -1971,7 +1999,8 @@ function PinForm({ days, categories, onCancel, onSubmit, initial, submitLabel, h
   }
 
   return (
-    <div style={{ background: "rgba(185,138,46,0.10)", border: "1px dashed var(--gold)", borderRadius: 10, padding: 14, marginBottom: 16, display: "grid", gap: 10 }}>
+    <div style={{ display: "grid", gap: 12 }}>
+      {title && <div className="pm-display" style={{ fontSize: 22, color: "var(--ink)" }}>{title}</div>}
       <div>
         <span className="pm-label">Name {placesReady && <span style={{ opacity: 0.6 }}>(search enabled)</span>}</span>
         <input ref={nameInputRef} className="pm-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Place name" />
@@ -2002,6 +2031,16 @@ function PinForm({ days, categories, onCancel, onSubmit, initial, submitLabel, h
       <div style={{ display: "flex", gap: 8 }}>
         <button className="pm-btn pm-btn-solid" onClick={submit}>{submitLabel || "Save pin"}</button>
         <button className="pm-btn pm-btn-ghost" style={{ color: "var(--ink)", borderColor: "rgba(46,43,38,0.3)" }} onClick={onCancel}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+function Modal({ onCancel, children }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20 }} onClick={onCancel}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#FFFDF9", borderRadius: 14, padding: 24, width: "100%", maxWidth: 380, boxShadow: "0 10px 30px rgba(0,0,0,0.4)", maxHeight: "90vh", overflowY: "auto" }}>
+        {children}
       </div>
     </div>
   );
@@ -2206,9 +2245,9 @@ function StopsTab({ trip, updateTrip, onPlan }) {
       {status === "loading" && <div style={{ marginTop: 10, fontSize: 12, opacity: 0.8 }}>loading map…</div>}
 
       {pendingLatLng && (
-        <div style={{ marginTop: 14 }}>
-          <PinForm days={trip.days} categories={categories} initial={{ lat: pendingLatLng.lat, lng: pendingLatLng.lng }} onCancel={() => setPendingLatLng(null)} onSubmit={addPin} />
-        </div>
+        <Modal onCancel={() => setPendingLatLng(null)}>
+          <PinForm title="New stop" days={trip.days} categories={categories} initial={{ lat: pendingLatLng.lat, lng: pendingLatLng.lng }} onCancel={() => setPendingLatLng(null)} onSubmit={addPin} />
+        </Modal>
       )}
 
       <div style={{ marginTop: 28, borderTop: "1px solid rgba(42,32,25,0.15)", paddingTop: 18 }}>
@@ -2226,29 +2265,39 @@ function StopsTab({ trip, updateTrip, onPlan }) {
         {galleryPins.length === 0 && <div style={{ fontSize: 13, color: "var(--ink-soft)", fontStyle: "italic" }}>No saved spots yet — search above or click the map.</div>}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
           {galleryPins.map((pin) => {
-            if (editingPinId === pin.id) {
-              return <div key={pin.id}><PinForm days={trip.days} categories={categories} initial={pin} onCancel={() => setEditingPinId(null)} onSubmit={(patch) => savePin(pin.id, patch)} submitLabel="Save changes" /></div>;
-            }
             const meta = catMeta(trip, pin.category);
             const Icon = iconFor(meta.icon);
             const day = trip.days.find((d) => d.id === pin.dayId);
             return (
-              <div key={pin.id} onClick={() => setEditingPinId(pin.id)} style={{ background: "#FFFDF9", border: "1px solid rgba(46,43,38,0.12)", borderRadius: 10, padding: 12, cursor: "pointer" }}>
+              <Textured key={pin.id} color={PAIR_DUOTONE.color} base={PAIR_DUOTONE.base} seed={4} radius={10} onClick={() => setEditingPinId(pin.id)} style={{ padding: 12, cursor: "pointer" }}>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-                    <span style={{ color: meta.color, flexShrink: 0 }}><Icon size={15} /></span>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: "var(--ink)" }}>{pin.name}</span>
+                    <span style={{ color: "#fff", flexShrink: 0 }}><Icon size={15} /></span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{pin.name}</span>
                   </div>
-                  <button onClick={(e) => { e.stopPropagation(); removePin(pin.id); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)", flexShrink: 0 }} aria-label="Remove"><X size={13} /></button>
+                  <button onClick={(e) => { e.stopPropagation(); removePin(pin.id); }} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.8)", flexShrink: 0 }} aria-label="Remove"><X size={13} /></button>
                 </div>
-                <div className="pm-mono" style={{ fontSize: 10, color: "var(--ink-soft)", marginTop: 4 }}>{day ? `day · ${day.city || formatDateShort(day.date)}` : "unscheduled"}</div>
-                {pin.note && <div style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 6 }}>{pin.note}</div>}
-                <button className="pm-btn pm-btn-solid" style={{ fontSize: 10, padding: "4px 9px", marginTop: 10 }} onClick={(e) => { e.stopPropagation(); onPlan(); }}>plan →</button>
-              </div>
+                <div className="pm-mono" style={{ fontSize: 10, color: "rgba(255,255,255,0.8)", marginTop: 4 }}>{day ? `day · ${day.city || formatDateShort(day.date)}` : "unscheduled"}</div>
+                {pin.note && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", marginTop: 6 }}>{pin.note}</div>}
+                <button style={{ fontSize: 10, padding: "4px 9px", marginTop: 10, border: "none", borderRadius: 18, fontWeight: 700, cursor: "pointer", background: PAIR_DUOTONE.accentBg, color: PAIR_DUOTONE.accentText }} onClick={(e) => { e.stopPropagation(); onPlan(); }}>plan →</button>
+              </Textured>
             );
           })}
         </div>
       </div>
+
+      {editingPinId && (
+        <Modal onCancel={() => setEditingPinId(null)}>
+          <PinForm
+            title="Edit stop"
+            days={trip.days} categories={categories}
+            initial={trip.pins.find((p) => p.id === editingPinId)}
+            onCancel={() => setEditingPinId(null)}
+            onSubmit={(patch) => savePin(editingPinId, patch)}
+            submitLabel="Save changes"
+          />
+        </Modal>
+      )}
     </div>
   );
 }
