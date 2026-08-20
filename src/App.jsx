@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
+import mountainPhoto from "./assets/mountain.jpg";
+import nycPhoto from "./assets/nyc.jpg";
+import cherryPhoto from "./assets/cherry.jpg";
 import {
   MapPin, Plus, X, ChevronDown, ChevronUp, ArrowLeft, Search, GripVertical,
   Map as MapIcon, BookOpen, Tag, KeyRound, BedDouble, Utensils,
@@ -266,13 +269,13 @@ const ICON_LIBRARY = {
 const ICON_LIBRARY_KEYS = Object.keys(ICON_LIBRARY);
 function iconFor(name) { return ICON_LIBRARY[name] || MapPin; }
 
-const CATEGORY_COLORS = ["#ED6725", "#335E53", "#271B0F", "#ECA945", "#4FA8D1", "#C4D93A"];
+const CATEGORY_COLORS = ["#D9421F", "#26422B", "#702722", "#CCE5FF"];
 
 function defaultCategories() {
   return [
-    { id: "cat-restaurant", name: "Restaurants", icon: "Utensils", color: "#ED6725" },
-    { id: "cat-spot", name: "Spots", icon: "MapPin", color: "#335E53" },
-    { id: "cat-hotel", name: "Hotels", icon: "BedDouble", color: "#271B0F" },
+    { id: "cat-restaurant", name: "Restaurants", icon: "Utensils", color: "#D9421F" },
+    { id: "cat-spot", name: "Spots", icon: "MapPin", color: "#26422B" },
+    { id: "cat-hotel", name: "Hotels", icon: "BedDouble", color: "#702722" },
   ];
 }
 function catMeta(trip, categoryId) {
@@ -281,14 +284,14 @@ function catMeta(trip, categoryId) {
 }
 
 const CARD_GRADIENTS = [
-  "linear-gradient(135deg,#335E53,#1a3a30)",
-  "linear-gradient(135deg,#ED6725,#a84515)",
-  "linear-gradient(135deg,#4FA8D1,#2a5c74)",
-  "linear-gradient(135deg,#ECA945,#8a6a1f)",
+  "linear-gradient(135deg,#26422B,#16281C)",
+  "linear-gradient(135deg,#D9421F,#A8341A)",
+  "linear-gradient(135deg,#CCE5FF,#6FA3C7)",
+  "linear-gradient(135deg,#702722,#4A1815)",
 ];
 
 // Classic pushpin colors — the darker collar/disc tone is derived automatically.
-const PIN_TONES = ["#ED6725", "#335E53", "#271B0F", "#ECA945"];
+const PIN_TONES = ["#D9421F", "#26422B", "#702722", "#CCE5FF"];
 
 function shadeColor(hex, amt) {
   const n = parseInt(hex.slice(1), 16);
@@ -467,22 +470,31 @@ export default function App() {
         @import url('https://fonts.googleapis.com/css2?family=Bungee&family=Rye&family=Nunito:ital,wght@0,400;0,600;0,700;1,600&family=Caveat:wght@600;700&family=Space+Mono:wght@400;700&display=swap');
 
         .pm-root {
-          --forest: #1E3A2C;
-          --forest-light: #2E5940;
-          --forest-deep: #0E1F17;
-          --forest-sky: #C9E2EF;
-          --rust: #ED6725;
-          --rust-light: #F2854A;
-          --rust-deep: #A8481F;
-          --rust-pink: #F3C7B8;
-          --navy: #271B0F;
-          --navy-light: #4A3826;
-          --gold: #ECA945;
-          --lime: #C4D93A;
-          --sky: #D3E8F2;
-          --bg: #F5ECE3;
-          --ink: #2A2019;
-          --ink-soft: #5C4E3F;
+          --coffee: #702722;
+          --icecube: #CCE5FF;
+          --mango: #D9421F;
+          --mango-light: #FDDBC5;
+          --oatmilk: #F9F5E6;
+          --cambodia: #26422B;
+          --cambodia-light: #E3EBE4;
+          --cambodia-wash: #C7D6C9;
+          --cambodia-dark: #16281C;
+          --forest: #26422B;
+          --forest-light: #3E6B48;
+          --forest-deep: #16281C;
+          --forest-sky: #CCE5FF;
+          --rust: #D9421F;
+          --rust-light: #E8623F;
+          --rust-deep: #A8341A;
+          --rust-pink: #FDDBC5;
+          --navy: #702722;
+          --navy-light: #8F4436;
+          --gold: #CCE5FF;
+          --lime: #D9421F;
+          --sky: #CCE5FF;
+          --bg: #F9F5E6;
+          --ink: #702722;
+          --ink-soft: #8A5C52;
           --card-shadow: rgba(0,0,0,0.28);
           font-family: 'Nunito', sans-serif;
           color: var(--ink);
@@ -567,55 +579,57 @@ export default function App() {
   );
 }
 
-function MastheadPlaneIcon({ cx, cy, s, color }) {
-  const scale = s / 100;
+function hexToUnit(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+}
+function DuotoneFilter({ id, dark, light }) {
+  const d = hexToUnit(dark), l = hexToUnit(light);
   return (
-    <g transform={`translate(${cx},${cy}) scale(${scale}) translate(-50,-50)`}>
-      <path d="M50 15 L54 30 L82 42 L82 47 L54 42 L51 62 L60 70 L60 74 L50 70 L40 74 L40 70 L49 62 L46 42 L18 47 L18 42 L46 30 Z" fill={color} />
-    </g>
+    <filter id={id} colorInterpolationFilters="sRGB">
+      <feColorMatrix type="matrix" values="0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0 0 0 1 0" />
+      <feComponentTransfer>
+        <feFuncR type="table" tableValues={`${d[0]} ${l[0]}`} />
+        <feFuncG type="table" tableValues={`${d[1]} ${l[1]}`} />
+        <feFuncB type="table" tableValues={`${d[2]} ${l[2]}`} />
+      </feComponentTransfer>
+    </filter>
   );
 }
-function MastheadOvalMark({ w, h, color, city, sub }) {
+function PaperOverlay({ id, seed }) {
   return (
-    <svg width={w} height={h} viewBox="0 0 140 90" style={{ display: "block" }}>
-      <ellipse cx="70" cy="45" rx="65" ry="39" fill="none" stroke={color} strokeWidth="5" />
-      <ellipse cx="70" cy="45" rx="55" ry="30" fill="none" stroke={color} strokeWidth="1.8" />
-      <text x="70" y="25" textAnchor="middle" fontSize="14" fontWeight="700" fill={color} letterSpacing="1">{city}</text>
-      <MastheadPlaneIcon cx={70} cy={48} s={26} color={color} />
-      <text x="70" y="72" textAnchor="middle" fontSize="11" fontWeight="700" fill={color} letterSpacing="1.5">{sub}</text>
+    <svg width="100%" height="100%" preserveAspectRatio="none" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+      <defs>
+        <filter id={`coarse-${id}`} x="-30%" y="-30%" width="160%" height="160%">
+          <feTurbulence type="turbulence" baseFrequency="0.18" numOctaves="2" seed={seed} stitchTiles="stitch" result="n" />
+          <feColorMatrix in="n" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 7 -4.9" />
+        </filter>
+        <filter id={`fine-${id}`} x="-30%" y="-30%" width="160%" height="160%">
+          <feTurbulence type="turbulence" baseFrequency="0.7" numOctaves="2" seed={seed + 50} stitchTiles="stitch" result="n2" />
+          <feColorMatrix in="n2" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 8 -6.2" />
+        </filter>
+        <pattern id={`pat-${id}`} width="90" height="90" patternUnits="userSpaceOnUse">
+          <rect width="90" height="90" filter={`url(#coarse-${id})`} opacity="0.45" />
+          <rect width="90" height="90" filter={`url(#fine-${id})`} opacity="0.5" />
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill={`url(#pat-${id})`} />
     </svg>
   );
 }
-function MastheadDiamondMark({ size, color, code }) {
+function WovenOverlay({ id, tile, threadOpacity }) {
+  const half = tile / 2;
   return (
-    <svg width={size} height={size} viewBox="0 0 100 100" style={{ display: "block" }}>
-      <polygon points="50,5 95,50 50,95 5,50" fill="none" stroke={color} strokeWidth="5" />
-      <MastheadPlaneIcon cx={50} cy={40} s={22} color={color} />
-      <text x="50" y="68" textAnchor="middle" fontSize="14" fontWeight="700" fill={color} letterSpacing="0.5">{code}</text>
-    </svg>
-  );
-}
-function MastheadCircleMark({ size, color, pathId, city, code }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 100 100" style={{ display: "block" }}>
-      <defs><path id={pathId} d="M 50,50 m -34,0 a 34,34 0 1,1 68,0 a 34,34 0 1,1 -68,0" /></defs>
-      <circle cx="50" cy="50" r="42" fill="none" stroke={color} strokeWidth="5" />
-      <circle cx="50" cy="50" r="33" fill="none" stroke={color} strokeWidth="1.7" />
-      <text fontSize="10.5" fontWeight="700" fill={color} letterSpacing="1">
-        <textPath href={`#${pathId}`} startOffset="25%" textAnchor="middle">{city}</textPath>
-      </text>
-      <MastheadPlaneIcon cx={50} cy={50} s={22} color={color} />
-      <text x="50" y="81" textAnchor="middle" fontSize="10" fontWeight="700" fill={color} letterSpacing="1">{code}</text>
-    </svg>
-  );
-}
-function MastheadRoundRectMark({ w, h, color, city, sub }) {
-  return (
-    <svg width={w} height={h} viewBox="0 0 130 80" style={{ display: "block" }}>
-      <rect x="6" y="6" width="118" height="68" rx="16" fill="none" stroke={color} strokeWidth="5" />
-      <text x="65" y="25" textAnchor="middle" fontSize="14" fontWeight="700" fill={color} letterSpacing="1">{city}</text>
-      <MastheadPlaneIcon cx={65} cy={44} s={24} color={color} />
-      <text x="65" y="66" textAnchor="middle" fontSize="11" fontWeight="700" fill={color} letterSpacing="1">{sub}</text>
+    <svg width="100%" height="100%" preserveAspectRatio="none" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+      <defs>
+        <pattern id={`weave-${id}`} width={tile} height={tile} patternUnits="userSpaceOnUse">
+          <rect x="0" y="0" width={tile} height={half} fill="#fff" opacity={threadOpacity} />
+          <rect x="0" y={half} width={tile} height={half} fill="#000" opacity={threadOpacity * 0.7} />
+          <rect x="0" y="0" width={half} height={tile} fill="#000" opacity={threadOpacity * 0.5} />
+          <rect x={half} y="0" width={half} height={tile} fill="#fff" opacity={threadOpacity * 0.6} />
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill={`url(#weave-${id})`} />
     </svg>
   );
 }
@@ -623,23 +637,27 @@ function MastheadRoundRectMark({ w, h, color, city, sub }) {
 function Masthead() {
   return (
     <div style={{ display: "flex", justifyContent: "center", padding: "40px 20px 30px" }}>
-      <div style={{ position: "relative", display: "inline-block", padding: "30px 48px" }}>
-        <div style={{ position: "absolute", top: -12, left: 0, opacity: 0.9, transform: "rotate(-14deg)", zIndex: 0 }}>
-          <MastheadOvalMark w={98} h={63} color="var(--rust)" city="PARIS" sub="ARRIVED" />
+      <div style={{ background: "var(--oatmilk)", borderRadius: 14, padding: 32, maxWidth: 620, width: "100%" }}>
+        <div style={{ position: "relative", width: "100%", height: 300 }}>
+          <div style={{ position: "absolute", left: 0, top: 0, width: "27%", height: "100%", overflow: "hidden", borderRadius: 4, boxShadow: "0 4px 14px rgba(0,0,0,0.25)" }}>
+            <svg width="0" height="0"><defs><DuotoneFilter id="duo-mango" dark="#A8341A" light="#FDDBC5" /></defs></svg>
+            <img src={mountainPhoto} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", filter: "url(#duo-mango)" }} />
+            <PaperOverlay id="mtn" seed={3} />
+          </div>
+          <div style={{ position: "absolute", left: "26%", top: "6%", width: "70%", height: "88%", overflow: "hidden", borderRadius: 4, boxShadow: "0 4px 14px rgba(0,0,0,0.25)" }}>
+            <svg width="0" height="0"><defs><DuotoneFilter id="duo-ice" dark="#6FA3C7" light="#F5FAFF" /></defs></svg>
+            <img src={nycPhoto} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", filter: "url(#duo-ice)" }} />
+            <WovenOverlay id="nyc" tile={3} threadOpacity={0.09} />
+          </div>
+          <div style={{ position: "absolute", left: "17%", top: "50%", width: "23%", height: "47%", overflow: "hidden", borderRadius: 4, border: "3px solid var(--oatmilk)", boxShadow: "0 4px 14px rgba(0,0,0,0.3)", zIndex: 3 }}>
+            <svg width="0" height="0"><defs><DuotoneFilter id="duo-camb" dark="#264A32" light="#AFC9AF" /></defs></svg>
+            <img src={cherryPhoto} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", filter: "url(#duo-camb)" }} />
+            <PaperOverlay id="cherry" seed={8} />
+          </div>
+          <div className="pm-display" style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: 10, fontSize: "clamp(32px, 7vw, 52px)", color: "var(--coffee)", whiteSpace: "nowrap", textShadow: "0 0 4px var(--oatmilk), 0 0 10px var(--oatmilk), 0 0 18px var(--oatmilk), 0 0 26px rgba(249,245,230,0.8)" }}>
+            Postmark
+          </div>
         </div>
-        <div style={{ position: "absolute", top: -16, right: -8, opacity: 0.9, transform: "rotate(10deg)", zIndex: 0 }}>
-          <MastheadDiamondMark size={70} color="var(--forest)" code="NYC" />
-        </div>
-        <div style={{ position: "absolute", bottom: -18, left: 14, opacity: 0.9, transform: "rotate(9deg)", zIndex: 0 }}>
-          <MastheadCircleMark size={72} color="var(--rust)" pathId="pm-mast-circ-1" city="LONDON" code="LHR" />
-        </div>
-        <div style={{ position: "absolute", bottom: -16, right: 6, opacity: 0.9, transform: "rotate(-8deg)", zIndex: 0 }}>
-          <MastheadRoundRectMark w={88} h={56} color="var(--forest)" city="TOKYO" sub="ARRIVED" />
-        </div>
-        <div style={{ position: "absolute", top: 24, left: -32, opacity: 0.9, transform: "rotate(-4deg)", zIndex: 0 }}>
-          <MastheadCircleMark size={58} color="var(--rust)" pathId="pm-mast-circ-2" city="SYDNEY" code="SYD" />
-        </div>
-        <div className="pm-display" style={{ position: "relative", zIndex: 1, fontSize: 40, color: "var(--navy)" }}>Postmark</div>
       </div>
     </div>
   );
