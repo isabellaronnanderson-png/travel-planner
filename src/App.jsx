@@ -2333,17 +2333,17 @@ function StopsTab({ trip, updateTrip, onPlan }) {
             const Icon = iconFor(meta.icon);
             const day = trip.days.find((d) => d.id === pin.dayId);
             return (
-              <Textured key={pin.id} color={PAIR_DUOTONE.color} base={PAIR_DUOTONE.base} seed={4} radius={10} onClick={() => setEditingPinId(pin.id)} style={{ padding: 12, cursor: "pointer" }}>
+              <Textured key={pin.id} color={PAIR_WASHED.color} texture="woven" radius={10} onClick={() => setEditingPinId(pin.id)} style={{ padding: 12, cursor: "pointer" }}>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-                    <span style={{ color: "#fff", flexShrink: 0 }}><Icon size={15} /></span>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{pin.name}</span>
+                    <span style={{ color: PAIR_WASHED.textColor, flexShrink: 0 }}><Icon size={15} /></span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: PAIR_WASHED.textColor }}>{pin.name}</span>
                   </div>
-                  <button onClick={(e) => { e.stopPropagation(); removePin(pin.id); }} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.8)", flexShrink: 0 }} aria-label="Remove"><X size={13} /></button>
+                  <button onClick={(e) => { e.stopPropagation(); removePin(pin.id); }} style={{ background: "none", border: "none", cursor: "pointer", color: PAIR_WASHED.textColor, opacity: 0.75, flexShrink: 0 }} aria-label="Remove"><X size={13} /></button>
                 </div>
-                <div className="pm-mono" style={{ fontSize: 10, color: "rgba(255,255,255,0.8)", marginTop: 4 }}>{day ? `day · ${day.city || formatDateShort(day.date)}` : "unscheduled"}</div>
-                {pin.note && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", marginTop: 6 }}>{pin.note}</div>}
-                <button style={{ fontSize: 10, padding: "4px 9px", marginTop: 10, border: "none", borderRadius: 18, fontWeight: 700, cursor: "pointer", background: PAIR_DUOTONE.accentBg, color: PAIR_DUOTONE.accentText }} onClick={(e) => { e.stopPropagation(); onPlan(); }}>plan →</button>
+                <div className="pm-mono" style={{ fontSize: 10, color: PAIR_WASHED.textColor, opacity: 0.75, marginTop: 4 }}>{day ? `day · ${day.city || formatDateShort(day.date)}` : "unscheduled"}</div>
+                {pin.note && <div style={{ fontSize: 12, color: PAIR_WASHED.textColor, opacity: 0.8, marginTop: 6 }}>{pin.note}</div>}
+                <button style={{ fontSize: 10, padding: "4px 9px", marginTop: 10, border: "none", borderRadius: 18, fontWeight: 700, cursor: "pointer", background: "var(--icecube)", color: "var(--coffee)" }} onClick={(e) => { e.stopPropagation(); onPlan(); }}>plan →</button>
               </Textured>
             );
           })}
