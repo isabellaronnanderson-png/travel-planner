@@ -520,8 +520,8 @@ export default function App() {
           transition: background 0.15s ease, color 0.15s ease;
         }
         .pm-btn:hover { background: var(--forest); border-color: var(--forest); color: #fff; }
-        .pm-btn-solid { background: var(--rust); border-color: var(--rust); color: #fff; }
-        .pm-btn-solid:hover { background: var(--rust-light); border-color: var(--rust-light); color: #fff; }
+        .pm-btn-solid { background: var(--icecube); border-color: var(--icecube); color: var(--coffee); }
+        .pm-btn-solid:hover { background: #B8D8F5; border-color: #B8D8F5; color: var(--coffee); }
         .pm-btn-ghost { border-color: rgba(42,32,25,0.35); }
         .pm-input, .pm-textarea, .pm-select {
           font-family: 'Nunito', sans-serif;
@@ -685,13 +685,36 @@ function Masthead() {
 let texturedIdCounter = 0;
 const PAIR_DUOTONE = { color: "#D9421F", base: "#A8341A", accentBg: "#FDDBC5", accentText: "#A8341A" };
 const PAIR_ALPINE = { color: "#26422B", base: "#16281C", accentBg: "#CCE5FF", accentText: "#26422B" };
-function Textured({ color, base, seed, style, className, children, radius, onClick }) {
+const PAIR_WASHED = { color: "#C9D6C9", textColor: "#26422B" };
+function Textured({ color, base, seed, style, className, children, radius, onClick, texture }) {
   const idRef = useRef(null);
   if (idRef.current === null) { idRef.current = `tex-${texturedIdCounter++}`; }
   const id = idRef.current;
+  const s = typeof seed === "number" ? seed : 4;
+
+  if (texture === "woven") {
+    const tile = 3, half = 1.5, op = 0.1;
+    return (
+      <div className={className} onClick={onClick} style={{ position: "relative", overflow: "hidden", borderRadius: radius, ...style }}>
+        <svg width="100%" height="100%" preserveAspectRatio="none" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block" }}>
+          <defs>
+            <pattern id={`weave-${id}`} width={tile} height={tile} patternUnits="userSpaceOnUse">
+              <rect width={tile} height={tile} fill={color} />
+              <rect x="0" y="0" width={tile} height={half} fill="#fff" opacity={op} />
+              <rect x="0" y={half} width={tile} height={half} fill="#000" opacity={op * 0.6} />
+              <rect x="0" y="0" width={half} height={tile} fill="#000" opacity={op * 0.4} />
+              <rect x={half} y="0" width={half} height={tile} fill="#fff" opacity={op * 0.5} />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill={`url(#weave-${id})`} />
+        </svg>
+        <div style={{ position: "relative", zIndex: 1 }}>{children}</div>
+      </div>
+    );
+  }
+
   const contrast = 9;
   const offset = -(contrast / 2 - 0.15);
-  const s = typeof seed === "number" ? seed : 4;
   const tile = 70;
   return (
     <div className={className} onClick={onClick} style={{ position: "relative", overflow: "hidden", borderRadius: radius, ...style }}>
@@ -710,6 +733,7 @@ function Textured({ color, base, seed, style, className, children, radius, onCli
         <rect width="100%" height="100%" fill={`url(#pat-${id})`} />
       </svg>
       <div style={{ position: "relative", zIndex: 1 }}>{children}</div>
+
     </div>
   );
 }
@@ -1384,8 +1408,6 @@ function ItineraryTab({ trip, expandedDayIds, toggleDay, updateDay, reorderDays,
                             onUnassignPin={unassignPin}
                             onUnassignNote={unassignNote}
                             onUpdateNoteText={updateNoteText}
-                            pairing={i % 2 === 0 ? PAIR_DUOTONE : PAIR_ALPINE}
-                            seed={i + 1}
                           />
                         </div>
                       </div>
@@ -1444,8 +1466,6 @@ function ItineraryTab({ trip, expandedDayIds, toggleDay, updateDay, reorderDays,
                             onUnassignPin={unassignPin}
                             onUnassignNote={unassignNote}
                             onUpdateNoteText={updateNoteText}
-                            pairing={i % 2 === 0 ? PAIR_DUOTONE : PAIR_ALPINE}
-                            seed={i + 1}
                           />
                         </div>
                       </div>
@@ -1577,33 +1597,34 @@ function SortableActivity({ id, dayId, children }) {
   return <div ref={setNodeRef} style={style}>{children({ handleProps: { ...attributes, ...listeners } })}</div>;
 }
 
-function SimpleStopCard({ pairing, seed, dragHandleProps, titleValue, onTitleChange, titleReadOnly, icon: Icon, expanded, onToggleExpand, expandedContent, onRemove }) {
+function SimpleStopCard({ dragHandleProps, titleValue, onTitleChange, titleReadOnly, icon: Icon, expanded, onToggleExpand, expandedContent, onRemove }) {
+  const p = PAIR_WASHED;
   return (
-    <Textured color={pairing.color} base={pairing.base} seed={seed} radius={8} style={{ marginBottom: 8, padding: "8px 10px" }}>
+    <Textured color={p.color} texture="woven" radius={8} style={{ marginBottom: 8, padding: "8px 10px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         {dragHandleProps && (
           <span {...dragHandleProps} style={{ cursor: "grab", touchAction: "none", display: "flex", flexShrink: 0 }}>
-            <GripVertical size={12} style={{ opacity: 0.7, color: "#fff" }} />
+            <GripVertical size={12} style={{ opacity: 0.6, color: p.textColor }} />
           </span>
         )}
-        {Icon && <span style={{ color: "#fff", display: "flex", flexShrink: 0 }}><Icon size={13} /></span>}
+        {Icon && <span style={{ color: p.textColor, display: "flex", flexShrink: 0 }}><Icon size={13} /></span>}
         {titleReadOnly ? (
-          <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{titleValue || "Untitled"}</span>
+          <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: p.textColor, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{titleValue || "Untitled"}</span>
         ) : (
           <input
             className="pm-input"
-            style={{ flex: 1, fontSize: 13, padding: "5px 8px", background: "rgba(255,255,255,0.85)", border: "none", color: "var(--ink)" }}
+            style={{ flex: 1, fontSize: 13, padding: "5px 8px", background: "rgba(255,255,255,0.7)", border: "none", color: "var(--ink)" }}
             value={titleValue}
             onChange={(e) => onTitleChange(arrowify(e.target.value))}
             placeholder=""
           />
         )}
         {expandedContent && (
-          <button onClick={onToggleExpand} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.85)", display: "flex", flexShrink: 0 }} aria-label="Expand">
+          <button onClick={onToggleExpand} style={{ background: "none", border: "none", cursor: "pointer", color: p.textColor, opacity: 0.8, display: "flex", flexShrink: 0 }} aria-label="Expand">
             <ChevronDown size={13} style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.15s ease" }} />
           </button>
         )}
-        {onRemove && <button onClick={onRemove} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.85)", flexShrink: 0 }} aria-label="Remove"><X size={13} /></button>}
+        {onRemove && <button onClick={onRemove} style={{ background: "none", border: "none", cursor: "pointer", color: p.textColor, opacity: 0.8, flexShrink: 0 }} aria-label="Remove"><X size={13} /></button>}
       </div>
       {expanded && expandedContent && <div style={{ marginTop: 6, background: "rgba(255,255,255,0.92)", borderRadius: 6, padding: 8 }}>{expandedContent}</div>}
     </Textured>
@@ -1611,7 +1632,7 @@ function SimpleStopCard({ pairing, seed, dragHandleProps, titleValue, onTitleCha
 }
 
 
-function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, dragHandleProps, canMoveUp, canMoveDown, onMoveUp, onMoveDown, activeAct, overAct, dayPins, dayNotes, categories, onUnassignPin, onUnassignNote, onUpdateNoteText, pairing, seed }) {
+function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, dragHandleProps, canMoveUp, canMoveDown, onMoveUp, onMoveDown, activeAct, overAct, dayPins, dayNotes, categories, onUnassignPin, onUnassignNote, onUpdateNoteText }) {
   const [expandedActIds, setExpandedActIds] = useState(() => new Set());
   const [expandedPlannedIds, setExpandedPlannedIds] = useState(() => new Set());
 
@@ -1635,25 +1656,25 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, dragHandleP
   const activeActivityIndex = activeIsMine ? activities.findIndex((a) => a.id === activeAct.id) : -1;
   const overActivityIndex = overIsMine ? activities.findIndex((a) => a.id === overAct.id) : -1;
   const plannedCount = (dayPins ? dayPins.length : 0) + (dayNotes ? dayNotes.length : 0);
-  const p = pairing || PAIR_ALPINE;
+  const p = PAIR_WASHED;
 
   return (
     <div>
-      <Textured color={p.color} base={p.base} seed={seed} onClick={onToggle} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", cursor: "pointer", gap: 12, borderRadius: expanded ? "12px 12px 0 0" : 12 }}>
+      <Textured color={p.color} texture="woven" onClick={onToggle} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", cursor: "pointer", gap: 12, borderRadius: expanded ? "12px 12px 0 0" : 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-          <DragHandleStack dragHandleProps={dragHandleProps} onUp={onMoveUp} onDown={onMoveDown} canUp={canMoveUp} canDown={canMoveDown} light />
+          <DragHandleStack dragHandleProps={dragHandleProps} onUp={onMoveUp} onDown={onMoveDown} canUp={canMoveUp} canDown={canMoveDown} />
           <div style={{ minWidth: 0 }}>
-            <div className="pm-mono" style={{ fontSize: 11, color: "rgba(255,255,255,0.8)" }}>{formatDate(day.date)}</div>
-            <div style={{ fontSize: 17, fontWeight: 700, marginTop: 2, color: "#fff" }}>{hideCity ? (day.blurb || "Untitled day") : (day.city || "Untitled stop")}</div>
+            <div className="pm-mono" style={{ fontSize: 11, color: "rgba(38,66,43,0.7)" }}>{formatDate(day.date)}</div>
+            <div style={{ fontSize: 17, fontWeight: 700, marginTop: 2, color: p.textColor }}>{hideCity ? (day.blurb || "Untitled day") : (day.city || "Untitled stop")}</div>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
           {plannedCount > 0 && (
-            <span className="pm-mono" style={{ fontSize: 10, color: p.color, background: "#fff", borderRadius: 10, padding: "3px 8px", fontWeight: 700 }}>
+            <span className="pm-mono" style={{ fontSize: 10, color: "#fff", background: p.textColor, borderRadius: 10, padding: "3px 8px", fontWeight: 700 }}>
               {plannedCount} planned
             </span>
           )}
-          <ChevronDown size={16} style={{ color: "#fff", transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.15s ease" }} />
+          <ChevronDown size={16} style={{ color: p.textColor, transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.15s ease" }} />
         </div>
       </Textured>
 
@@ -1673,8 +1694,6 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, dragHandleP
                 return (
                   <SimpleStopCard
                     key={pin.id}
-                    pairing={PAIR_ALPINE}
-                    seed={9}
                     icon={Icon}
                     titleValue={pin.name}
                     titleReadOnly
@@ -1696,8 +1715,6 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, dragHandleP
                 return (
                   <SimpleStopCard
                     key={note.id}
-                    pairing={PAIR_ALPINE}
-                    seed={13}
                     titleValue={note.text}
                     onTitleChange={(v) => onUpdateNoteText && onUpdateNoteText(note.id, v)}
                     expanded={isExp}
@@ -1723,8 +1740,6 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, dragHandleP
                     <SortableActivity id={a.id} dayId={day.id}>
                       {({ handleProps }) => (
                         <SimpleStopCard
-                          pairing={PAIR_DUOTONE}
-                          seed={idx + 2}
                           dragHandleProps={handleProps}
                           titleValue={a.where}
                           onTitleChange={(v) => updateActivity(a.id, { where: v })}
