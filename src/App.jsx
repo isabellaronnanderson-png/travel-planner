@@ -693,7 +693,7 @@ function Textured({ color, base, seed, style, className, children, radius, onCli
   const s = typeof seed === "number" ? seed : 4;
 
   if (texture === "woven") {
-    const tile = 3, half = 1.5, op = 0.1;
+    const tile = 1.6, half = 0.8, op = 0.045;
     return (
       <div className={className} onClick={onClick} style={{ position: "relative", overflow: "hidden", borderRadius: radius, ...style }}>
         <svg width="100%" height="100%" preserveAspectRatio="none" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block" }}>
@@ -1869,7 +1869,7 @@ function StashSection({ title, icon: Icon, items, renderItem, onAdd, onRemove, f
 function DropZone({ id, children }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
-    <div ref={setNodeRef} style={{ border: `2px solid ${isOver ? "var(--rust)" : "rgba(30,58,44,0.4)"}`, borderRadius: 10, padding: 10, minHeight: 46, background: isOver ? "rgba(237,103,37,0.16)" : "rgba(30,58,44,0.14)", transition: "background 0.1s ease, border-color 0.1s ease" }}>
+    <div ref={setNodeRef} style={{ border: `2px solid ${isOver ? "var(--rust)" : "rgba(38,66,43,0.35)"}`, borderRadius: 10, padding: 10, minHeight: 46, background: isOver ? "rgba(237,103,37,0.16)" : "rgba(201,214,201,0.4)", transition: "background 0.1s ease, border-color 0.1s ease" }}>
       {children}
     </div>
   );
@@ -1880,17 +1880,18 @@ function DraggablePin({ pin, categories, days, expanded, onToggle, onSave, onRem
   const meta = catMeta({ categories }, pin.category);
   const Icon = iconFor(meta.icon);
   const style = { transform: CSS.Translate.toString(transform), opacity: isDragging ? 0.4 : 1, zIndex: isDragging ? 5 : "auto" };
+  const p = PAIR_WASHED;
   return (
     <div ref={setNodeRef} style={{ ...style, display: "inline-flex", flexDirection: "column", borderRadius: 10, overflow: "hidden" }}>
-      <Textured color={PAIR_ALPINE.color} base={PAIR_ALPINE.base} seed={7}>
+      <Textured color={p.color} texture="woven">
         <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <span {...listeners} {...attributes} style={{ cursor: "grab", touchAction: "none", display: "flex", padding: "6px 0 6px 8px", flexShrink: 0 }}><GripVertical size={11} style={{ opacity: 0.6, color: "#fff" }} /></span>
+          <span {...listeners} {...attributes} style={{ cursor: "grab", touchAction: "none", display: "flex", padding: "6px 0 6px 8px", flexShrink: 0 }}><GripVertical size={11} style={{ opacity: 0.6, color: p.textColor }} /></span>
           <button
             onClick={onToggle}
             className="pm-mono"
-            style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, padding: "6px 10px 6px 4px", background: "none", border: "none", cursor: "pointer", color: "#fff" }}
+            style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, padding: "6px 10px 6px 4px", background: "none", border: "none", cursor: "pointer", color: p.textColor }}
           >
-            <Icon size={11} style={{ color: "#fff" }} /> {pin.name}
+            <Icon size={11} style={{ color: p.textColor }} /> {pin.name}
           </button>
         </div>
       </Textured>
@@ -1907,12 +1908,13 @@ function DraggablePin({ pin, categories, days, expanded, onToggle, onSave, onRem
 function DraggableNote({ note, onChange, onRemove }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: note.id, data: { type: "note" } });
   const style = { transform: CSS.Translate.toString(transform), opacity: isDragging ? 0.4 : 1, zIndex: isDragging ? 5 : "auto" };
+  const p = PAIR_WASHED;
   return (
     <div ref={setNodeRef} style={style}>
-      <Textured color={PAIR_ALPINE.color} base={PAIR_ALPINE.base} seed={11} radius={14} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 6px 4px 8px" }}>
-        <span {...listeners} {...attributes} style={{ cursor: "grab", touchAction: "none", display: "flex" }}><GripVertical size={11} style={{ opacity: 0.6, color: "#fff" }} /></span>
-        <input value={note.text} onChange={(e) => onChange(e.target.value)} placeholder="Note…" className="pm-mono" style={{ border: "none", background: "transparent", fontSize: 11, outline: "none", width: 110, color: "#fff" }} />
-        <button onClick={onRemove} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.8)", display: "flex" }} aria-label="Remove note"><X size={11} /></button>
+      <Textured color={p.color} texture="woven" radius={14} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 6px 4px 8px" }}>
+        <span {...listeners} {...attributes} style={{ cursor: "grab", touchAction: "none", display: "flex" }}><GripVertical size={11} style={{ opacity: 0.6, color: p.textColor }} /></span>
+        <input value={note.text} onChange={(e) => onChange(e.target.value)} placeholder="Note…" className="pm-mono" style={{ border: "none", background: "transparent", fontSize: 11, outline: "none", width: 110, color: p.textColor }} />
+        <button onClick={onRemove} style={{ background: "none", border: "none", cursor: "pointer", color: p.textColor, opacity: 0.8, display: "flex" }} aria-label="Remove note"><X size={11} /></button>
       </Textured>
     </div>
   );
