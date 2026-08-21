@@ -81,7 +81,13 @@ function resizeImageFile(file, maxWidth = 640, quality = 0.85) {
 }
 
 function act(where, text) {
-  return { id: uid(), where: where || "", text: text || "" };
+  return { id: uid(), kind: "activity", where: where || "", text: text || "" };
+}
+function pinRef(pinId) {
+  return { id: uid(), kind: "pin", pinId };
+}
+function noteRef(noteId) {
+  return { id: uid(), kind: "note", noteId };
 }
 
 function makeDay(date, city, blurb, activities, extras) {
@@ -141,6 +147,22 @@ function migrateTrip(trip) {
     const remap = { restaurant: "cat-restaurant", spot: "cat-spot", hotel: "cat-hotel" };
     t = { ...t, pins: (t.pins || []).map((p) => (remap[p.category] ? { ...p, category: remap[p.category] } : p)) };
   }
+  t = {
+    ...t,
+    days: t.days.map((d) => {
+      let activities = (d.activities || []).map((a) => (a.kind ? a : { ...a, kind: "activity" }));
+      activities = activities.filter((a) => {
+        if (a.kind === "pin") { const p = (t.pins || []).find((pp) => pp.id === a.pinId); return p && p.dayId === d.id; }
+        if (a.kind === "note") { const n = (t.notes || []).find((nn) => nn.id === a.noteId); return n && n.dayId === d.id; }
+        return true;
+      });
+      const referencedPinIds = new Set(activities.filter((a) => a.kind === "pin").map((a) => a.pinId));
+      const referencedNoteIds = new Set(activities.filter((a) => a.kind === "note").map((a) => a.noteId));
+      (t.pins || []).forEach((p) => { if (p.dayId === d.id && !referencedPinIds.has(p.id)) activities.push(pinRef(p.id)); });
+      (t.notes || []).forEach((n) => { if (n.dayId === d.id && !referencedNoteIds.has(n.id)) activities.push(noteRef(n.id)); });
+      return { ...d, activities };
+    }),
+  };
   return t;
 }
 
@@ -1149,7 +1171,10 @@ function TripView({ trip, onBack, updateTrip }) {
         activities.splice(insertAt, 0, moved);
         return { ...d, activities };
       });
-      return { ...t, days };
+      let pins = t.pins, notes = t.notes;
+      if (moved.kind === "pin") pins = t.pins.map((p) => (p.id === moved.pinId ? { ...p, dayId: toDayId } : p));
+      if (moved.kind === "note") notes = (t.notes || []).map((n) => (n.id === moved.noteId ? { ...n, dayId: toDayId } : n));
+      return { ...t, days, pins, notes };
     });
   }
 
@@ -1290,9 +1315,21 @@ function DayDragPreview({ day, index }) {
 
 function ItineraryTab({ trip, expandedDayIds, toggleDay, updateDay, reorderDays, moveActivity, updateTripStash, addSection, updateSection, removeSection, addDay, updateTrip }) {
   function updatePin(id, patch) { updateTrip((t) => ({ ...t, pins: t.pins.map((p) => (p.id === id ? { ...p, ...patch } : p)) })); }
-  function unassignPin(id) { updatePin(id, { dayId: null }); }
+  function unassignPin(id) {
+    updateTrip((t) => ({
+      ...t,
+      pins: t.pins.map((p) => (p.id === id ? { ...p, dayId: null } : p)),
+      days: t.days.map((d) => ({ ...d, activities: (d.activities || []).filter((a) => !(a.kind === "pin" && a.pinId === id)) })),
+    }));
+  }
   function updateNoteText(id, text) { updateTrip((t) => ({ ...t, notes: t.notes.map((n) => (n.id === id ? { ...n, text } : n)) })); }
-  function unassignNote(id) { updateTrip((t) => ({ ...t, notes: t.notes.map((n) => (n.id === id ? { ...n, dayId: null } : n)) })); }
+  function unassignNote(id) {
+    updateTrip((t) => ({
+      ...t,
+      notes: (t.notes || []).map((n) => (n.id === id ? { ...n, dayId: null } : n)),
+      days: t.days.map((d) => ({ ...d, activities: (d.activities || []).filter((a) => !(a.kind === "note" && a.noteId === id)) })),
+    }));
+  }
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
   const [activeDayId, setActiveDayId] = useState(null);
   const [overDayId, setOverDayId] = useState(null);
@@ -1372,7 +1409,7 @@ function ItineraryTab({ trip, expandedDayIds, toggleDay, updateDay, reorderDays,
   const dragOverlay = (
     <DragOverlay>
       {activeDay ? <DayDragPreview day={activeDay} index={activeIndex} /> : null}
-      {activeActivity ? <ActivityDragPreview activity={activeActivity} index={activeActivityIndex} /> : null}
+      {activeActivity ? <ActivityDragPreview activity={activeActivity} index={activeActivityIndex} trip={trip} /> : null}
     </DragOverlay>
   );
 
@@ -1402,8 +1439,8 @@ function ItineraryTab({ trip, expandedDayIds, toggleDay, updateDay, reorderDays,
                             canMoveUp={i > 0} canMoveDown={i < trip.days.length - 1}
                             onMoveUp={() => reorderDays(i, i - 1)} onMoveDown={() => reorderDays(i, i + 1)}
                             activeAct={activeAct} overAct={overAct}
-                            dayPins={trip.pins.filter((p) => p.dayId === day.id)}
-                            dayNotes={(trip.notes || []).filter((n) => n.dayId === day.id)}
+                            allPins={trip.pins}
+                            allNotes={trip.notes}
                             categories={trip.categories}
                             onUnassignPin={unassignPin}
                             onUnassignNote={unassignNote}
@@ -1460,8 +1497,8 @@ function ItineraryTab({ trip, expandedDayIds, toggleDay, updateDay, reorderDays,
                             canMoveUp={i > 0} canMoveDown={i < trip.days.length - 1}
                             onMoveUp={() => reorderDays(i, i - 1)} onMoveDown={() => reorderDays(i, i + 1)}
                             activeAct={activeAct} overAct={overAct}
-                            dayPins={trip.pins.filter((p) => p.dayId === day.id)}
-                            dayNotes={(trip.notes || []).filter((n) => n.dayId === day.id)}
+                            allPins={trip.pins}
+                            allNotes={trip.notes}
                             categories={trip.categories}
                             onUnassignPin={unassignPin}
                             onUnassignNote={unassignNote}
@@ -1577,11 +1614,19 @@ function DragHandleStack({ dragHandleProps, onUp, onDown, canUp, canDown, size, 
   );
 }
 
-function ActivityDragPreview({ activity, index }) {
+function ActivityDragPreview({ activity, index, trip }) {
+  let label = activity.where || "Untitled stop";
+  if (activity.kind === "pin") {
+    const pin = trip.pins.find((p) => p.id === activity.pinId);
+    label = (pin && pin.name) || "Untitled stop";
+  } else if (activity.kind === "note") {
+    const note = (trip.notes || []).find((n) => n.id === activity.noteId);
+    label = (note && note.text) || "Untitled note";
+  }
   return (
     <div style={{ background: PAIR_DUOTONE.color, borderRadius: 8, padding: 10, boxShadow: "0 10px 24px rgba(0,0,0,0.3)", minWidth: 200, cursor: "grabbing" }}>
       <div className="pm-mono" style={{ fontSize: 9, color: "rgba(255,255,255,0.75)" }}>STOP {index + 1}</div>
-      <div style={{ fontSize: 13, fontWeight: 700, marginTop: 2, color: "#fff" }}>{activity.where || "Untitled stop"}</div>
+      <div style={{ fontSize: 13, fontWeight: 700, marginTop: 2, color: "#fff" }}>{label}</div>
     </div>
   );
 }
@@ -1632,9 +1677,8 @@ function SimpleStopCard({ dragHandleProps, titleValue, onTitleChange, titleReadO
 }
 
 
-function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, dragHandleProps, canMoveUp, canMoveDown, onMoveUp, onMoveDown, activeAct, overAct, dayPins, dayNotes, categories, onUnassignPin, onUnassignNote, onUpdateNoteText }) {
+function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, dragHandleProps, canMoveUp, canMoveDown, onMoveUp, onMoveDown, activeAct, overAct, allPins, allNotes, categories, onUnassignPin, onUnassignNote, onUpdateNoteText }) {
   const [expandedActIds, setExpandedActIds] = useState(() => new Set());
-  const [expandedPlannedIds, setExpandedPlannedIds] = useState(() => new Set());
 
   function toggleSet(setter, id) {
     setter((prev) => {
@@ -1655,7 +1699,7 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, dragHandleP
   const overIsMine = overAct && overAct.dayId === day.id;
   const activeActivityIndex = activeIsMine ? activities.findIndex((a) => a.id === activeAct.id) : -1;
   const overActivityIndex = overIsMine ? activities.findIndex((a) => a.id === overAct.id) : -1;
-  const plannedCount = (dayPins ? dayPins.length : 0) + (dayNotes ? dayNotes.length : 0);
+  const plannedCount = activities.filter((a) => a.kind === "pin" || a.kind === "note").length;
   const p = PAIR_WASHED;
 
   return (
@@ -1684,79 +1728,79 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, dragHandleP
             <input className="pm-input" value={titleValue} onChange={(e) => updateDay((d) => ({ ...d, [titleField]: arrowify(e.target.value) }))} placeholder="" />
           </div>
 
-          {plannedCount > 0 && (
-            <div style={{ marginTop: 16 }}>
-              <div className="pm-mono" style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--ink-soft)", marginBottom: 8 }}>Planned from Overview</div>
-              {(dayPins || []).map((pin) => {
-                const meta = catMeta({ categories }, pin.category);
-                const Icon = iconFor(meta.icon);
-                const isExp = expandedPlannedIds.has(pin.id);
-                return (
-                  <SimpleStopCard
-                    key={pin.id}
-                    icon={Icon}
-                    titleValue={pin.name}
-                    titleReadOnly
-                    expanded={isExp}
-                    onToggleExpand={() => toggleSet(setExpandedPlannedIds, pin.id)}
-                    expandedContent={
-                      <div>
-                        {pin.note && <div style={{ fontSize: 12, color: "var(--ink-soft)", marginBottom: 6 }}>{pin.note}</div>}
-                        {pin.link && <a href={pin.link} target="_blank" rel="noreferrer" className="pm-mono" style={{ fontSize: 11, color: "var(--navy)", display: "block", marginBottom: 6 }}>{pin.link}</a>}
-                        <button className="pm-btn pm-btn-ghost" style={{ fontSize: 10, padding: "4px 9px", color: "var(--ink)", borderColor: "rgba(46,43,38,0.25)" }} onClick={() => onUnassignPin && onUnassignPin(pin.id)}>send back to unscheduled</button>
-                      </div>
-                    }
-                    onRemove={() => onUnassignPin && onUnassignPin(pin.id)}
-                  />
-                );
-              })}
-              {(dayNotes || []).map((note) => {
-                const isExp = expandedPlannedIds.has(note.id);
-                return (
-                  <SimpleStopCard
-                    key={note.id}
-                    titleValue={note.text}
-                    onTitleChange={(v) => onUpdateNoteText && onUpdateNoteText(note.id, v)}
-                    expanded={isExp}
-                    onToggleExpand={() => toggleSet(setExpandedPlannedIds, note.id)}
-                    expandedContent={
-                      <button className="pm-btn pm-btn-ghost" style={{ fontSize: 10, padding: "4px 9px", color: "var(--ink)", borderColor: "rgba(46,43,38,0.25)" }} onClick={() => onUnassignNote && onUnassignNote(note.id)}>send back to unscheduled</button>
-                    }
-                    onRemove={() => onUnassignNote && onUnassignNote(note.id)}
-                  />
-                );
-              })}
-            </div>
-          )}
-
           <div style={{ marginTop: 16 }}>
             <div className="pm-mono" style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--ink-soft)", marginBottom: 8 }}>Activities</div>
             <SortableContext items={activities.map((a) => a.id)} strategy={verticalListSortingStrategy}>
               {activities.map((a, idx) => {
                 const isExp = expandedActIds.has(a.id);
+
+                let cardContent = null;
+                if (a.kind === "pin") {
+                  const pin = (allPins || []).find((p2) => p2.id === a.pinId);
+                  if (!pin) return null;
+                  const meta = catMeta({ categories }, pin.category);
+                  const Icon = iconFor(meta.icon);
+                  cardContent = (handleProps) => (
+                    <SimpleStopCard
+                      dragHandleProps={handleProps}
+                      icon={Icon}
+                      titleValue={pin.name}
+                      titleReadOnly
+                      expanded={isExp}
+                      onToggleExpand={() => toggleSet(setExpandedActIds, a.id)}
+                      expandedContent={
+                        <div>
+                          {pin.note && <div style={{ fontSize: 12, color: "var(--ink-soft)", marginBottom: 6 }}>{pin.note}</div>}
+                          {pin.link && <a href={pin.link} target="_blank" rel="noreferrer" className="pm-mono" style={{ fontSize: 11, color: "var(--navy)", display: "block", marginBottom: 6 }}>{pin.link}</a>}
+                          <button className="pm-btn pm-btn-ghost" style={{ fontSize: 10, padding: "4px 9px", color: "var(--ink)", borderColor: "rgba(46,43,38,0.25)" }} onClick={() => onUnassignPin && onUnassignPin(pin.id)}>send back to unscheduled</button>
+                        </div>
+                      }
+                      onRemove={() => onUnassignPin && onUnassignPin(pin.id)}
+                    />
+                  );
+                } else if (a.kind === "note") {
+                  const note = (allNotes || []).find((n) => n.id === a.noteId);
+                  if (!note) return null;
+                  cardContent = (handleProps) => (
+                    <SimpleStopCard
+                      dragHandleProps={handleProps}
+                      titleValue={note.text}
+                      onTitleChange={(v) => onUpdateNoteText && onUpdateNoteText(note.id, v)}
+                      expanded={isExp}
+                      onToggleExpand={() => toggleSet(setExpandedActIds, a.id)}
+                      expandedContent={
+                        <button className="pm-btn pm-btn-ghost" style={{ fontSize: 10, padding: "4px 9px", color: "var(--ink)", borderColor: "rgba(46,43,38,0.25)" }} onClick={() => onUnassignNote && onUnassignNote(note.id)}>send back to unscheduled</button>
+                      }
+                      onRemove={() => onUnassignNote && onUnassignNote(note.id)}
+                    />
+                  );
+                } else {
+                  cardContent = (handleProps) => (
+                    <SimpleStopCard
+                      dragHandleProps={handleProps}
+                      titleValue={a.where}
+                      onTitleChange={(v) => updateActivity(a.id, { where: v })}
+                      expanded={isExp}
+                      onToggleExpand={() => toggleSet(setExpandedActIds, a.id)}
+                      expandedContent={
+                        <textarea
+                          className="pm-textarea"
+                          style={{ fontSize: 13, minHeight: 50, background: "#FAF8F4", border: "1.5px solid rgba(46,43,38,0.15)" }}
+                          value={a.text}
+                          onChange={(e) => updateActivity(a.id, { text: arrowify(e.target.value) })}
+                          placeholder=""
+                        />
+                      }
+                      onRemove={() => removeActivity(a.id)}
+                    />
+                  );
+                }
+
                 return (
                   <React.Fragment key={a.id}>
                     {overIsMine && overAct.id === a.id && (activeIsMine ? activeActivityIndex > overActivityIndex : true) && <InsertLine />}
                     <SortableActivity id={a.id} dayId={day.id}>
-                      {({ handleProps }) => (
-                        <SimpleStopCard
-                          dragHandleProps={handleProps}
-                          titleValue={a.where}
-                          onTitleChange={(v) => updateActivity(a.id, { where: v })}
-                          expanded={isExp}
-                          onToggleExpand={() => toggleSet(setExpandedActIds, a.id)}
-                          expandedContent={
-                            <textarea
-                              className="pm-textarea"
-                              style={{ fontSize: 13, minHeight: 50, background: "#FAF8F4", border: "1.5px solid rgba(46,43,38,0.15)" }}
-                              value={a.text}
-                              onChange={(e) => updateActivity(a.id, { text: arrowify(e.target.value) })}
-                              placeholder=""
-                            />
-                          }
-                          onRemove={() => removeActivity(a.id)}
-                        />
-                      )}
+                      {({ handleProps }) => cardContent(handleProps)}
                     </SortableActivity>
                     {overIsMine && overAct.id === a.id && activeIsMine && activeActivityIndex < overActivityIndex && <InsertLine />}
                   </React.Fragment>
@@ -1938,8 +1982,27 @@ function OverviewTab({ trip, updateTrip }) {
     if (!over) return;
     const type = active.data.current && active.data.current.type;
     const toDayId = over.id === "unscheduled" ? null : over.id;
-    if (type === "pin") updateTrip((t) => ({ ...t, pins: t.pins.map((p) => (p.id === active.id ? { ...p, dayId: toDayId } : p)) }));
-    else if (type === "note") updateTrip((t) => ({ ...t, notes: t.notes.map((n) => (n.id === active.id ? { ...n, dayId: toDayId } : n)) }));
+    if (type === "pin") {
+      updateTrip((t) => {
+        const pin = t.pins.find((p) => p.id === active.id);
+        if (!pin) return t;
+        const fromDayId = pin.dayId;
+        let days = t.days;
+        if (fromDayId) days = days.map((d) => (d.id === fromDayId ? { ...d, activities: (d.activities || []).filter((a) => !(a.kind === "pin" && a.pinId === active.id)) } : d));
+        if (toDayId) days = days.map((d) => (d.id === toDayId ? { ...d, activities: [...(d.activities || []), pinRef(active.id)] } : d));
+        return { ...t, pins: t.pins.map((p) => (p.id === active.id ? { ...p, dayId: toDayId } : p)), days };
+      });
+    } else if (type === "note") {
+      updateTrip((t) => {
+        const note = (t.notes || []).find((n) => n.id === active.id);
+        if (!note) return t;
+        const fromDayId = note.dayId;
+        let days = t.days;
+        if (fromDayId) days = days.map((d) => (d.id === fromDayId ? { ...d, activities: (d.activities || []).filter((a) => !(a.kind === "note" && a.noteId === active.id)) } : d));
+        if (toDayId) days = days.map((d) => (d.id === toDayId ? { ...d, activities: [...(d.activities || []), noteRef(active.id)] } : d));
+        return { ...t, notes: (t.notes || []).map((n) => (n.id === active.id ? { ...n, dayId: toDayId } : n)), days };
+      });
+    }
   }
 
   function addNote() { updateTrip((t) => ({ ...t, notes: [...(t.notes || []), { id: uid(), text: "", dayId: null }] })); }
