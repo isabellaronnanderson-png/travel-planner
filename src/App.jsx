@@ -266,13 +266,13 @@ const ICON_LIBRARY = {
 const ICON_LIBRARY_KEYS = Object.keys(ICON_LIBRARY);
 function iconFor(name) { return ICON_LIBRARY[name] || MapPin; }
 
-const CATEGORY_COLORS = ["#C1591F", "#2E5940", "#2C5F9E", "#B98A2E", "#8B4A9C", "#3C7A6E"];
+const CATEGORY_COLORS = ["#D9421F", "#26422B", "#702722", "#CCE5FF"];
 
 function defaultCategories() {
   return [
-    { id: "cat-restaurant", name: "Restaurants", icon: "Utensils", color: "#C1591F" },
-    { id: "cat-spot", name: "Spots", icon: "MapPin", color: "#2E5940" },
-    { id: "cat-hotel", name: "Hotels", icon: "BedDouble", color: "#2C5F9E" },
+    { id: "cat-restaurant", name: "Restaurants", icon: "Utensils", color: "#D9421F" },
+    { id: "cat-spot", name: "Spots", icon: "MapPin", color: "#26422B" },
+    { id: "cat-hotel", name: "Hotels", icon: "BedDouble", color: "#702722" },
   ];
 }
 function catMeta(trip, categoryId) {
@@ -281,14 +281,14 @@ function catMeta(trip, categoryId) {
 }
 
 const CARD_GRADIENTS = [
-  "linear-gradient(135deg,#3C7A54,#1F3B2C)",
-  "linear-gradient(135deg,#D9622A,#8B3E15)",
-  "linear-gradient(135deg,#3E6690,#1B2E44)",
-  "linear-gradient(135deg,#B98A2E,#6B4E17)",
+  "linear-gradient(135deg,#26422B,#16281C)",
+  "linear-gradient(135deg,#D9421F,#A8341A)",
+  "linear-gradient(135deg,#CCE5FF,#6FA3C7)",
+  "linear-gradient(135deg,#702722,#4A1815)",
 ];
 
 // Classic pushpin colors — the darker collar/disc tone is derived automatically.
-const PIN_TONES = ["#E8402E", "#2F7A46", "#2C5F9E", "#E8A33D"];
+const PIN_TONES = ["#D9421F", "#26422B", "#702722", "#CCE5FF"];
 
 function shadeColor(hex, amt) {
   const n = parseInt(hex.slice(1), 16);
@@ -467,16 +467,30 @@ export default function App() {
         @import url('https://fonts.googleapis.com/css2?family=Bungee&family=Rye&family=Nunito:ital,wght@0,400;0,600;0,700;1,600&family=Caveat:wght@600;700&family=Space+Mono:wght@400;700&display=swap');
 
         .pm-root {
-          --forest: #2E5940;
-          --forest-light: #47825E;
-          --rust: #C1591F;
-          --rust-light: #D9622A;
-          --navy: #2C4F73;
-          --navy-light: #3E6690;
-          --gold: #B98A2E;
-          --bg: #F8E29C;
-          --ink: #2A2019;
-          --ink-soft: #5C4E3F;
+          --coffee: #702722;
+          --icecube: #CCE5FF;
+          --mango: #D9421F;
+          --mango-light: #FDDBC5;
+          --oatmilk: #F9F5E6;
+          --cambodia: #26422B;
+          --cambodia-light: #E3EBE4;
+          --cambodia-wash: #C7D6C9;
+          --cambodia-dark: #16281C;
+          --forest: #26422B;
+          --forest-light: #3E6B48;
+          --forest-deep: #16281C;
+          --forest-sky: #CCE5FF;
+          --rust: #D9421F;
+          --rust-light: #E8623F;
+          --rust-deep: #A8341A;
+          --rust-pink: #FDDBC5;
+          --navy: #702722;
+          --navy-light: #8F4436;
+          --gold: #CCE5FF;
+          --sky: #CCE5FF;
+          --bg: #F9F5E6;
+          --ink: #702722;
+          --ink-soft: #8A5C52;
           --card-shadow: rgba(0,0,0,0.28);
           font-family: 'Nunito', sans-serif;
           color: var(--ink);
@@ -669,8 +683,8 @@ function Masthead() {
 }
 
 let texturedIdCounter = 0;
-const PAIR_DUOTONE = { color: "#C1591F", base: "#7A3712", accentBg: "#E8A377", accentText: "#7A3712" };
-const PAIR_ALPINE = { color: "#2E5940", base: "#16291D", accentBg: "#A8C4B0", accentText: "#2E5940" };
+const PAIR_DUOTONE = { color: "#D9421F", base: "#A8341A", accentBg: "#FDDBC5", accentText: "#A8341A" };
+const PAIR_ALPINE = { color: "#26422B", base: "#16281C", accentBg: "#CCE5FF", accentText: "#26422B" };
 function Textured({ color, base, seed, style, className, children, radius, onClick }) {
   const idRef = useRef(null);
   if (idRef.current === null) { idRef.current = `tex-${texturedIdCounter++}`; }
@@ -678,18 +692,22 @@ function Textured({ color, base, seed, style, className, children, radius, onCli
   const contrast = 9;
   const offset = -(contrast / 2 - 0.15);
   const s = typeof seed === "number" ? seed : 4;
+  const tile = 70;
   return (
     <div className={className} onClick={onClick} style={{ position: "relative", overflow: "hidden", borderRadius: radius, ...style }}>
-      <svg viewBox="0 0 200 200" preserveAspectRatio="none" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block" }}>
+      <svg width="100%" height="100%" preserveAspectRatio="none" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block" }}>
         <defs>
           <filter id={`f-${id}`} x="-30%" y="-30%" width="160%" height="160%">
-            <feTurbulence type="turbulence" baseFrequency="0.06" numOctaves="1" seed={s} stitchTiles="stitch" result="n" />
+            <feTurbulence type="turbulence" baseFrequency="0.09" numOctaves="1" seed={s} stitchTiles="stitch" result="n" />
             <feColorMatrix in="n" type="matrix" values={`0 0 0 ${contrast} ${offset}  0 0 0 ${contrast} ${offset}  0 0 0 ${contrast} ${offset}  0 0 0 ${contrast} ${offset}`} />
           </filter>
-          <mask id={`m-${id}`}><rect width="200" height="200" fill="white" filter={`url(#f-${id})`} /></mask>
+          <mask id={`m-${id}`}><rect width={tile} height={tile} fill="white" filter={`url(#f-${id})`} /></mask>
+          <pattern id={`pat-${id}`} width={tile} height={tile} patternUnits="userSpaceOnUse">
+            <rect width={tile} height={tile} fill={base} />
+            <rect width={tile} height={tile} fill={color} mask={`url(#m-${id})`} />
+          </pattern>
         </defs>
-        <rect width="200" height="200" fill={base} />
-        <rect width="200" height="200" fill={color} mask={`url(#m-${id})`} />
+        <rect width="100%" height="100%" fill={`url(#pat-${id})`} />
       </svg>
       <div style={{ position: "relative", zIndex: 1 }}>{children}</div>
     </div>
