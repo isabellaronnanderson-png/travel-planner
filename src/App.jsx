@@ -1,7 +1,4 @@
 import React, { useState, useEffect, useRef } from "react";
-import mountainPhoto from "./assets/mountain.jpg";
-import nycPhoto from "./assets/nyc.jpg";
-import cherryPhoto from "./assets/cherry.jpg";
 import {
   MapPin, Plus, X, ChevronDown, ChevronUp, ArrowLeft, Search, GripVertical,
   Map as MapIcon, BookOpen, Tag, KeyRound, BedDouble, Utensils,
@@ -564,70 +561,6 @@ export default function App() {
   );
 }
 
-function hexToUnit(hex) {
-  const n = parseInt(hex.slice(1), 16);
-  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
-}
-
-function PhotoSVG({ id, src, natW, natH, boxW, boxH, dark, light, texture, seed, focusX, focusY }) {
-  focusX = focusX === undefined ? 0.5 : focusX;
-  focusY = focusY === undefined ? 0.5 : focusY;
-  const d = hexToUnit(dark), l = hexToUnit(light);
-
-  const boxRatio = boxW / boxH;
-  const imgRatio = natW / natH;
-  let cropW, cropH;
-  if (imgRatio > boxRatio) { cropH = natH; cropW = natH * boxRatio; }
-  else { cropW = natW; cropH = natW / boxRatio; }
-  const cropX = (natW - cropW) * focusX;
-  const cropY = (natH - cropH) * focusY;
-  const scaleX = boxW / cropW, scaleY = boxH / cropH;
-
-  return (
-    <svg viewBox={`0 0 ${boxW} ${boxH}`} preserveAspectRatio="none" style={{ display: "block", width: "100%", height: "100%" }}>
-      <defs>
-        <filter id={`duo-${id}`} x="0%" y="0%" width="100%" height="100%" colorInterpolationFilters="sRGB">
-          <feColorMatrix type="matrix" values="0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0 0 0 1 0" />
-          <feComponentTransfer>
-            <feFuncR type="table" tableValues={`${d[0]} ${l[0]}`} />
-            <feFuncG type="table" tableValues={`${d[1]} ${l[1]}`} />
-            <feFuncB type="table" tableValues={`${d[2]} ${l[2]}`} />
-          </feComponentTransfer>
-        </filter>
-        {texture === "paper" && (
-          <>
-            <filter id={`coarse-${id}`} x="0%" y="0%" width="100%" height="100%">
-              <feTurbulence type="turbulence" baseFrequency="0.18" numOctaves="2" seed={seed} stitchTiles="stitch" result="n" />
-              <feColorMatrix in="n" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 7 -4.9" />
-            </filter>
-            <filter id={`fine-${id}`} x="0%" y="0%" width="100%" height="100%">
-              <feTurbulence type="turbulence" baseFrequency="0.7" numOctaves="2" seed={seed + 50} stitchTiles="stitch" result="n2" />
-              <feColorMatrix in="n2" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 8 -6.2" />
-            </filter>
-            <pattern id={`pat-${id}`} width="90" height="90" patternUnits="userSpaceOnUse">
-              <rect width="90" height="90" filter={`url(#coarse-${id})`} opacity="0.45" />
-              <rect width="90" height="90" filter={`url(#fine-${id})`} opacity="0.5" />
-            </pattern>
-          </>
-        )}
-        {texture === "woven" && (
-          <pattern id={`pat-${id}`} width="3" height="3" patternUnits="userSpaceOnUse">
-            <rect x="0" y="0" width="3" height="1.5" fill="#fff" opacity="0.09" />
-            <rect x="0" y="1.5" width="3" height="1.5" fill="#000" opacity="0.063" />
-            <rect x="0" y="0" width="1.5" height="3" fill="#000" opacity="0.045" />
-            <rect x="1.5" y="0" width="1.5" height="3" fill="#fff" opacity="0.054" />
-          </pattern>
-        )}
-        <clipPath id={`clip-${id}`}><rect x="0" y="0" width={boxW} height={boxH} /></clipPath>
-      </defs>
-      <g clipPath={`url(#clip-${id})`}>
-        <image href={src} x={-cropX * scaleX} y={-cropY * scaleY} width={natW * scaleX} height={natH * scaleY} filter={`url(#duo-${id})`} preserveAspectRatio="none" />
-        {texture && <rect x="0" y="0" width={boxW} height={boxH} fill={`url(#pat-${id})`} />}
-      </g>
-    </svg>
-  );
-}
-
 function MastheadPlaneIcon({ cx, cy, s, color }) {
   const scale = s / 100;
   return (
@@ -636,9 +569,23 @@ function MastheadPlaneIcon({ cx, cy, s, color }) {
     </g>
   );
 }
-function MastheadOvalMark({ w, h, color, city, sub }) {
+function MastheadScratchDefs({ id, seed }) {
+  return (
+    <>
+      <filter id={`tex-${id}`} x="0%" y="0%" width="100%" height="100%">
+        <feTurbulence type="turbulence" baseFrequency="0.06" numOctaves="1" seed={seed} stitchTiles="stitch" result="n" />
+        <feColorMatrix in="n" type="matrix" values="0 0 0 9 -4.35  0 0 0 9 -4.35  0 0 0 9 -4.35  0 0 0 9 -4.35" />
+      </filter>
+      <mask id={`m-${id}`}><rect width="100%" height="100%" fill="white" filter={`url(#tex-${id})`} /></mask>
+    </>
+  );
+}
+function MastheadOvalMark({ w, h, color, base, seed, city, sub }) {
+  const id = `oval-${seed}`;
   return (
     <svg width={w} height={h} viewBox="0 0 140 90" style={{ display: "block" }}>
+      <defs><MastheadScratchDefs id={id} seed={seed} /></defs>
+      <rect width="140" height="90" fill={base} mask={`url(#m-${id})`} opacity="0.5" />
       <ellipse cx="70" cy="45" rx="65" ry="39" fill="none" stroke={color} strokeWidth="5" />
       <ellipse cx="70" cy="45" rx="55" ry="30" fill="none" stroke={color} strokeWidth="1.8" />
       <text x="70" y="25" textAnchor="middle" fontSize="14" fontWeight="700" fill={color} letterSpacing="1">{city}</text>
@@ -647,19 +594,27 @@ function MastheadOvalMark({ w, h, color, city, sub }) {
     </svg>
   );
 }
-function MastheadDiamondMark({ size, color, code }) {
+function MastheadDiamondMark({ size, color, base, seed, code }) {
+  const id = `dia-${seed}`;
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" style={{ display: "block" }}>
+      <defs><MastheadScratchDefs id={id} seed={seed} /></defs>
+      <polygon points="50,5 95,50 50,95 5,50" fill={base} mask={`url(#m-${id})`} opacity="0.5" />
       <polygon points="50,5 95,50 50,95 5,50" fill="none" stroke={color} strokeWidth="5" />
       <MastheadPlaneIcon cx={50} cy={40} s={22} color={color} />
       <text x="50" y="68" textAnchor="middle" fontSize="14" fontWeight="700" fill={color} letterSpacing="0.5">{code}</text>
     </svg>
   );
 }
-function MastheadCircleMark({ size, color, pathId, city, code }) {
+function MastheadCircleMark({ size, color, base, seed, pathId, city, code }) {
+  const id = `circ-${seed}`;
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" style={{ display: "block" }}>
-      <defs><path id={pathId} d="M 50,50 m -34,0 a 34,34 0 1,1 68,0 a 34,34 0 1,1 -68,0" /></defs>
+      <defs>
+        <MastheadScratchDefs id={id} seed={seed} />
+        <path id={pathId} d="M 50,50 m -34,0 a 34,34 0 1,1 68,0 a 34,34 0 1,1 -68,0" />
+      </defs>
+      <circle cx="50" cy="50" r="42" fill={base} mask={`url(#m-${id})`} opacity="0.5" />
       <circle cx="50" cy="50" r="42" fill="none" stroke={color} strokeWidth="5" />
       <circle cx="50" cy="50" r="33" fill="none" stroke={color} strokeWidth="1.7" />
       <text fontSize="10.5" fontWeight="700" fill={color} letterSpacing="1">
@@ -670,9 +625,12 @@ function MastheadCircleMark({ size, color, pathId, city, code }) {
     </svg>
   );
 }
-function MastheadRoundRectMark({ w, h, color, city, sub }) {
+function MastheadRoundRectMark({ w, h, color, base, seed, city, sub }) {
+  const id = `rr-${seed}`;
   return (
     <svg width={w} height={h} viewBox="0 0 130 80" style={{ display: "block" }}>
+      <defs><MastheadScratchDefs id={id} seed={seed} /></defs>
+      <rect x="6" y="6" width="118" height="68" rx="16" fill={base} mask={`url(#m-${id})`} opacity="0.5" />
       <rect x="6" y="6" width="118" height="68" rx="16" fill="none" stroke={color} strokeWidth="5" />
       <text x="65" y="25" textAnchor="middle" fontSize="14" fontWeight="700" fill={color} letterSpacing="1">{city}</text>
       <MastheadPlaneIcon cx={65} cy={44} s={24} color={color} />
@@ -682,25 +640,29 @@ function MastheadRoundRectMark({ w, h, color, city, sub }) {
 }
 
 function Masthead() {
+  const COFFEE = "#702722", COFFEE_BASE = "#3D1512";
+  const ICECUBE = "#6FA3C7", ICECUBE_BASE = "#345C77";
+  const MANGO = "#D9421F", MANGO_BASE = "#7A2F16";
+  const CAMBODIA = "#26422B", CAMBODIA_BASE = "#132316";
   return (
     <div style={{ display: "flex", justifyContent: "center", padding: "40px 20px 30px" }}>
       <div style={{ position: "relative", display: "inline-block", padding: "30px 48px" }}>
-        <div style={{ position: "absolute", top: -12, left: 0, opacity: 0.9, transform: "rotate(-14deg)", zIndex: 0 }}>
-          <MastheadOvalMark w={98} h={63} color="var(--rust)" city="PARIS" sub="ARRIVED" />
+        <div style={{ position: "absolute", top: -12, left: 0, opacity: 0.95, transform: "rotate(-14deg)", zIndex: 0 }}>
+          <MastheadOvalMark w={98} h={63} color={MANGO} base={MANGO_BASE} seed={1} city="PARIS" sub="ARRIVED" />
         </div>
-        <div style={{ position: "absolute", top: -16, right: -8, opacity: 0.9, transform: "rotate(10deg)", zIndex: 0 }}>
-          <MastheadDiamondMark size={70} color="var(--forest)" code="NYC" />
+        <div style={{ position: "absolute", top: -16, right: -8, opacity: 0.95, transform: "rotate(10deg)", zIndex: 0 }}>
+          <MastheadDiamondMark size={70} color={CAMBODIA} base={CAMBODIA_BASE} seed={2} code="NYC" />
         </div>
-        <div style={{ position: "absolute", bottom: -18, left: 14, opacity: 0.9, transform: "rotate(9deg)", zIndex: 0 }}>
-          <MastheadCircleMark size={72} color="var(--navy)" pathId="pm-mast-circ-1" city="LONDON" code="LHR" />
+        <div style={{ position: "absolute", bottom: -18, left: 14, opacity: 0.95, transform: "rotate(9deg)", zIndex: 0 }}>
+          <MastheadCircleMark size={72} color={COFFEE} base={COFFEE_BASE} seed={3} pathId="pm-mast-circ-1" city="LONDON" code="LHR" />
         </div>
-        <div style={{ position: "absolute", bottom: -16, right: 6, opacity: 0.9, transform: "rotate(-8deg)", zIndex: 0 }}>
-          <MastheadRoundRectMark w={88} h={56} color="var(--gold)" city="TOKYO" sub="ARRIVED" />
+        <div style={{ position: "absolute", bottom: -16, right: 6, opacity: 0.95, transform: "rotate(-8deg)", zIndex: 0 }}>
+          <MastheadRoundRectMark w={88} h={56} color={ICECUBE} base={ICECUBE_BASE} seed={4} city="TOKYO" sub="ARRIVED" />
         </div>
-        <div style={{ position: "absolute", top: 24, left: -32, opacity: 0.9, transform: "rotate(-4deg)", zIndex: 0 }}>
-          <MastheadCircleMark size={58} color="var(--rust)" pathId="pm-mast-circ-2" city="SYDNEY" code="SYD" />
+        <div style={{ position: "absolute", top: 24, left: -32, opacity: 0.95, transform: "rotate(-4deg)", zIndex: 0 }}>
+          <MastheadCircleMark size={58} color={ICECUBE} base={ICECUBE_BASE} seed={5} pathId="pm-mast-circ-2" city="SYDNEY" code="SYD" />
         </div>
-        <div className="pm-display" style={{ position: "relative", zIndex: 1, fontSize: 40, color: "var(--navy)" }}>Postmark</div>
+        <div className="pm-display" style={{ position: "relative", zIndex: 1, fontSize: 40, color: COFFEE }}>Postmark</div>
       </div>
     </div>
   );
