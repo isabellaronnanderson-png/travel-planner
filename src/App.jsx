@@ -56,7 +56,7 @@ function resizeImageFile(file, maxWidth = 640, quality = 0.85) {
         canvas.width = Math.round(img.width * scale);
         canvas.height = Math.round(img.height * scale);
         const ctx = canvas.getContext("2d");
-        try { ctx.filter = "saturate(0.8) contrast(1.0) brightness(1.1) sepia(0.18)"; } catch (e) { /* ignore */ }
+        try { ctx.filter = "saturate(1.05) contrast(1.0) brightness(1.0)"; } catch (e) { /* ignore */ }
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         try {
           const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -578,14 +578,14 @@ export default function App() {
         </div>
       ) : activeTrip ? (
         <>
-          <Masthead />
+          <Masthead onHome={closeTrip} />
           <div className="pm-content">
             <TripView trip={activeTrip} onBack={closeTrip} updateTrip={(fn) => updateTrip(activeTrip.id, fn)} />
           </div>
         </>
       ) : (
         <>
-          <Masthead />
+          <Masthead onHome={closeTrip} />
           <div className="pm-content">
             <HomeView trips={trips} onOpen={openTrip} onNew={() => setShowNewForm(true)} onDelete={deleteTrip} />
           </div>
@@ -675,7 +675,7 @@ function MastheadRoundRectMark({ w, h, color, base, seed, city, sub }) {
   );
 }
 
-function Masthead() {
+function Masthead({ onHome }) {
   const COFFEE = "#702722", COFFEE_BASE = "#3D1512";
   const ICECUBE = "#6FA3C7", ICECUBE_BASE = "#345C77";
   const MANGO = "#D9421F", MANGO_BASE = "#7A2F16";
@@ -698,7 +698,13 @@ function Masthead() {
         <div style={{ position: "absolute", top: 24, left: -32, opacity: 0.95, transform: "rotate(-4deg)", zIndex: 0 }}>
           <MastheadCircleMark size={58} color={ICECUBE} base={ICECUBE_BASE} seed={5} pathId="pm-mast-circ-2" city="SYDNEY" code="SYD" />
         </div>
-        <div className="pm-display" style={{ position: "relative", zIndex: 1, fontSize: 40, color: COFFEE }}>Postmark</div>
+        <button
+          className="pm-display"
+          onClick={onHome}
+          style={{ position: "relative", zIndex: 1, fontSize: 40, color: COFFEE, background: "none", border: "none", padding: 0, cursor: onHome ? "pointer" : "default" }}
+        >
+          Postmark
+        </button>
       </div>
     </div>
   );
@@ -849,7 +855,7 @@ function ArchedTitle({ name, index }) {
     return (
       <svg viewBox="0 0 320 220" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
         <defs><path id={pathId} d={singlePath} /></defs>
-        <text fontSize={fontSize} textLength={targetLength} lengthAdjust="spacingAndGlyphs" fill="#fff" stroke="#1a1a1a" strokeWidth="4.5" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
+        <text fontSize={fontSize} textLength={targetLength} lengthAdjust="spacingAndGlyphs" fill="#702722" stroke="#F9F5E6" strokeWidth="4.5" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
           <textPath href={`#${pathId}`} startOffset="50%" textAnchor="middle">{name}</textPath>
         </text>
       </svg>
@@ -868,10 +874,10 @@ function ArchedTitle({ name, index }) {
         <path id={id1} d={topPath} />
         <path id={id2} d={bottomPath} />
       </defs>
-      <text fontSize={fontSize} textLength={len1} lengthAdjust="spacingAndGlyphs" fill="#fff" stroke="#1a1a1a" strokeWidth="4" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
+      <text fontSize={fontSize} textLength={len1} lengthAdjust="spacingAndGlyphs" fill="#702722" stroke="#F9F5E6" strokeWidth="4" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
         <textPath href={`#${id1}`} startOffset="50%" textAnchor="middle">{line1}</textPath>
       </text>
-      <text fontSize={fontSize} textLength={len2} lengthAdjust="spacingAndGlyphs" fill="#fff" stroke="#1a1a1a" strokeWidth="4" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
+      <text fontSize={fontSize} textLength={len2} lengthAdjust="spacingAndGlyphs" fill="#702722" stroke="#F9F5E6" strokeWidth="4" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
         <textPath href={`#${id2}`} startOffset="50%" textAnchor="middle">{line2}</textPath>
       </text>
     </svg>
@@ -913,7 +919,7 @@ function TripCard({ trip, index, onOpen, onDelete, flipping, onStartFlip }) {
           <X size={12} color="#fff" />
         </button>
 
-        <div style={{ position: "relative", height: 150, borderRadius: "2px 7px 3px 6px", overflow: "hidden", background: trip.coverImage ? `center / cover no-repeat url(${trip.coverImage})` : gradient, border: "2px solid rgba(0,0,0,0.65)", filter: "saturate(0.85) contrast(1.0) brightness(1.06) sepia(0.15)" }}>
+        <div style={{ position: "relative", height: 150, borderRadius: "2px 7px 3px 6px", overflow: "hidden", background: trip.coverImage ? `center / cover no-repeat url(${trip.coverImage})` : gradient, border: "2px solid rgba(0,0,0,0.65)", filter: "url(#pm-cartoonize) saturate(1.25) contrast(1.15)" }}>
           <ArchedTitle name={trip.name} index={index} />
         </div>
         <PostmarkStamp accent={stampAccent} index={index} topText={`★ ${formatDateShort(trip.days[0] ? trip.days[0].date : "")} ★`} />
@@ -936,6 +942,16 @@ function HomeView({ trips, onOpen, onNew, onDelete }) {
 
   return (
     <div>
+      <svg width="0" height="0" style={{ position: "absolute" }}>
+        <filter id="pm-cartoonize" colorInterpolationFilters="sRGB">
+          <feColorMatrix type="saturate" values="1.6" />
+          <feComponentTransfer>
+            <feFuncR type="discrete" tableValues="0 0.16 0.32 0.48 0.64 0.8 0.92 1" />
+            <feFuncG type="discrete" tableValues="0 0.16 0.32 0.48 0.64 0.8 0.92 1" />
+            <feFuncB type="discrete" tableValues="0 0.16 0.32 0.48 0.64 0.8 0.92 1" />
+          </feComponentTransfer>
+        </filter>
+      </svg>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 32, paddingTop: 20 }}>
         {trips.map((trip, i) => (
           <TripCard key={trip.id} trip={trip} index={i} onOpen={onOpen} onDelete={onDelete} flipping={flippingId === trip.id} onStartFlip={handleOpen} />
@@ -1624,9 +1640,9 @@ function ActivityDragPreview({ activity, index, trip }) {
     label = (note && note.text) || "Untitled note";
   }
   return (
-    <div style={{ background: PAIR_DUOTONE.color, borderRadius: 8, padding: 10, boxShadow: "0 10px 24px rgba(0,0,0,0.3)", minWidth: 200, cursor: "grabbing" }}>
-      <div className="pm-mono" style={{ fontSize: 9, color: "rgba(255,255,255,0.75)" }}>STOP {index + 1}</div>
-      <div style={{ fontSize: 13, fontWeight: 700, marginTop: 2, color: "#fff" }}>{label}</div>
+    <div style={{ background: PAIR_WASHED.color, borderRadius: 8, padding: 10, boxShadow: "0 10px 24px rgba(0,0,0,0.3)", minWidth: 200, cursor: "grabbing" }}>
+      <div className="pm-mono" style={{ fontSize: 9, color: "rgba(38,66,43,0.7)" }}>STOP {index + 1}</div>
+      <div style={{ fontSize: 13, fontWeight: 700, marginTop: 2, color: PAIR_WASHED.textColor }}>{label}</div>
     </div>
   );
 }
@@ -1638,6 +1654,7 @@ function SortableActivity({ id, dayId, children }) {
     transition,
     opacity: isDragging ? 0.5 : 1,
     zIndex: isDragging ? 10 : "auto",
+    willChange: isDragging ? "transform" : "auto",
   };
   return <div ref={setNodeRef} style={style}>{children({ handleProps: { ...attributes, ...listeners } })}</div>;
 }
