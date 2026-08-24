@@ -855,7 +855,7 @@ function ArchedTitle({ name, index }) {
     return (
       <svg viewBox="0 0 320 220" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
         <defs><path id={pathId} d={singlePath} /></defs>
-        <text fontSize={fontSize} textLength={targetLength} lengthAdjust="spacingAndGlyphs" fill="#3F3A3C" stroke="#F9F5E6" strokeWidth="4.5" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
+        <text fontSize={fontSize} textLength={targetLength} lengthAdjust="spacingAndGlyphs" fill="none" stroke="#FFFFFF" strokeWidth="5.5" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
           <textPath href={`#${pathId}`} startOffset="50%" textAnchor="middle">{name}</textPath>
         </text>
       </svg>
@@ -874,10 +874,10 @@ function ArchedTitle({ name, index }) {
         <path id={id1} d={topPath} />
         <path id={id2} d={bottomPath} />
       </defs>
-      <text fontSize={fontSize} textLength={len1} lengthAdjust="spacingAndGlyphs" fill="#3F3A3C" stroke="#F9F5E6" strokeWidth="4" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
+      <text fontSize={fontSize} textLength={len1} lengthAdjust="spacingAndGlyphs" fill="none" stroke="#FFFFFF" strokeWidth="5" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
         <textPath href={`#${id1}`} startOffset="50%" textAnchor="middle">{line1}</textPath>
       </text>
-      <text fontSize={fontSize} textLength={len2} lengthAdjust="spacingAndGlyphs" fill="#3F3A3C" stroke="#F9F5E6" strokeWidth="4" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
+      <text fontSize={fontSize} textLength={len2} lengthAdjust="spacingAndGlyphs" fill="none" stroke="#FFFFFF" strokeWidth="5" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
         <textPath href={`#${id2}`} startOffset="50%" textAnchor="middle">{line2}</textPath>
       </text>
     </svg>
