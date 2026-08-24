@@ -855,7 +855,7 @@ function ArchedTitle({ name, index }) {
     return (
       <svg viewBox="0 0 320 220" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
         <defs><path id={pathId} d={singlePath} /></defs>
-        <text fontSize={fontSize} textLength={targetLength} lengthAdjust="spacingAndGlyphs" fill="#702722" stroke="#F9F5E6" strokeWidth="4.5" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
+        <text fontSize={fontSize} textLength={targetLength} lengthAdjust="spacingAndGlyphs" fill="#3F3A3C" stroke="#F9F5E6" strokeWidth="4.5" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
           <textPath href={`#${pathId}`} startOffset="50%" textAnchor="middle">{name}</textPath>
         </text>
       </svg>
@@ -874,10 +874,10 @@ function ArchedTitle({ name, index }) {
         <path id={id1} d={topPath} />
         <path id={id2} d={bottomPath} />
       </defs>
-      <text fontSize={fontSize} textLength={len1} lengthAdjust="spacingAndGlyphs" fill="#702722" stroke="#F9F5E6" strokeWidth="4" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
+      <text fontSize={fontSize} textLength={len1} lengthAdjust="spacingAndGlyphs" fill="#3F3A3C" stroke="#F9F5E6" strokeWidth="4" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
         <textPath href={`#${id1}`} startOffset="50%" textAnchor="middle">{line1}</textPath>
       </text>
-      <text fontSize={fontSize} textLength={len2} lengthAdjust="spacingAndGlyphs" fill="#702722" stroke="#F9F5E6" strokeWidth="4" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
+      <text fontSize={fontSize} textLength={len2} lengthAdjust="spacingAndGlyphs" fill="#3F3A3C" stroke="#F9F5E6" strokeWidth="4" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
         <textPath href={`#${id2}`} startOffset="50%" textAnchor="middle">{line2}</textPath>
       </text>
     </svg>
@@ -919,7 +919,7 @@ function TripCard({ trip, index, onOpen, onDelete, flipping, onStartFlip }) {
           <X size={12} color="#fff" />
         </button>
 
-        <div style={{ position: "relative", height: 150, borderRadius: "2px 7px 3px 6px", overflow: "hidden", background: trip.coverImage ? `center / cover no-repeat url(${trip.coverImage})` : gradient, border: "2px solid rgba(0,0,0,0.65)", filter: "url(#pm-cartoonize) saturate(1.25) contrast(1.15)" }}>
+        <div style={{ position: "relative", height: 150, borderRadius: "2px 7px 3px 6px", overflow: "hidden", background: trip.coverImage ? `center / cover no-repeat url(${trip.coverImage})` : gradient, border: "2px solid rgba(0,0,0,0.65)", filter: "url(#pm-cartoonize) brightness(1.05)" }}>
           <ArchedTitle name={trip.name} index={index} />
         </div>
         <PostmarkStamp accent={stampAccent} index={index} topText={`★ ${formatDateShort(trip.days[0] ? trip.days[0].date : "")} ★`} />
@@ -944,11 +944,11 @@ function HomeView({ trips, onOpen, onNew, onDelete }) {
     <div>
       <svg width="0" height="0" style={{ position: "absolute" }}>
         <filter id="pm-cartoonize" colorInterpolationFilters="sRGB">
-          <feColorMatrix type="saturate" values="1.6" />
+          <feColorMatrix type="saturate" values="0.6" />
           <feComponentTransfer>
-            <feFuncR type="discrete" tableValues="0 0.16 0.32 0.48 0.64 0.8 0.92 1" />
-            <feFuncG type="discrete" tableValues="0 0.16 0.32 0.48 0.64 0.8 0.92 1" />
-            <feFuncB type="discrete" tableValues="0 0.16 0.32 0.48 0.64 0.8 0.92 1" />
+            <feFuncR type="discrete" tableValues="0.28 0.46 0.64 0.82 0.97" />
+            <feFuncG type="discrete" tableValues="0.28 0.46 0.64 0.82 0.97" />
+            <feFuncB type="discrete" tableValues="0.28 0.46 0.64 0.82 0.97" />
           </feComponentTransfer>
         </filter>
       </svg>
