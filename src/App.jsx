@@ -944,7 +944,7 @@ function HomeView({ trips, onOpen, onNew, onDelete }) {
     <div>
       <svg width="0" height="0" style={{ position: "absolute" }}>
         <filter id="pm-cartoonize" colorInterpolationFilters="sRGB">
-          <feColorMatrix type="saturate" values="0.6" />
+          <feColorMatrix type="saturate" values="0.82" />
           <feComponentTransfer>
             <feFuncR type="discrete" tableValues="0.28 0.46 0.64 0.82 0.97" />
             <feFuncG type="discrete" tableValues="0.28 0.46 0.64 0.82 0.97" />
@@ -1716,7 +1716,6 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, dragHandleP
   const overIsMine = overAct && overAct.dayId === day.id;
   const activeActivityIndex = activeIsMine ? activities.findIndex((a) => a.id === activeAct.id) : -1;
   const overActivityIndex = overIsMine ? activities.findIndex((a) => a.id === overAct.id) : -1;
-  const plannedCount = activities.filter((a) => a.kind === "pin" || a.kind === "note").length;
   const p = PAIR_WASHED;
 
   return (
@@ -1730,11 +1729,6 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, dragHandleP
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-          {plannedCount > 0 && (
-            <span className="pm-mono" style={{ fontSize: 10, color: "#fff", background: p.textColor, borderRadius: 10, padding: "3px 8px", fontWeight: 700 }}>
-              {plannedCount} planned
-            </span>
-          )}
           <ChevronDown size={16} style={{ color: p.textColor, transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.15s ease" }} />
         </div>
       </Textured>
