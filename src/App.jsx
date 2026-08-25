@@ -490,7 +490,7 @@ export default function App() {
 
         .pm-root {
           --coffee: #702722;
-          --icecube: #CCE5FF;
+          --icecube: #F0954B;
           --mango: #D9421F;
           --mango-light: #FDDBC5;
           --oatmilk: #F9F5E6;
@@ -543,7 +543,7 @@ export default function App() {
         }
         .pm-btn:hover { background: var(--forest); border-color: var(--forest); color: #fff; }
         .pm-btn-solid { background: var(--icecube); border-color: var(--icecube); color: var(--coffee); }
-        .pm-btn-solid:hover { background: #B8D8F5; border-color: #B8D8F5; color: var(--coffee); }
+        .pm-btn-solid:hover { background: #E07A2E; border-color: #E07A2E; color: var(--coffee); }
         .pm-btn-ghost { border-color: rgba(42,32,25,0.35); }
         .pm-input, .pm-textarea, .pm-select {
           font-family: 'Nunito', sans-serif;
@@ -713,7 +713,7 @@ function Masthead({ onHome }) {
 let texturedIdCounter = 0;
 const PAIR_DUOTONE = { color: "#D9421F", base: "#A8341A", accentBg: "#FDDBC5", accentText: "#A8341A" };
 const PAIR_ALPINE = { color: "#26422B", base: "#16281C", accentBg: "#CCE5FF", accentText: "#26422B" };
-const PAIR_WASHED = { color: "#C9D6C9", textColor: "#26422B" };
+const PAIR_WASHED = { color: "#CBE1F0", textColor: "#1F5673" };
 function Textured({ color, base, seed, style, className, children, radius, onClick, texture }) {
   const idRef = useRef(null);
   if (idRef.current === null) { idRef.current = `tex-${texturedIdCounter++}`; }
@@ -767,22 +767,13 @@ function Textured({ color, base, seed, style, className, children, radius, onCli
 }
 
 function Thumbtack({ color, style }) {
-  const dark = shadeColor(color, -18);
-  const outline = shadeColor(color, -85);
+  const outline = shadeColor(color, -55);
   return (
-    <svg width="34" height="55" viewBox="0 0 36 58" style={{ filter: "drop-shadow(0 5px 5px rgba(0,0,0,0.45))", ...style }}>
-      <ellipse cx="18" cy="53" rx="4" ry="1.6" fill="rgba(0,0,0,0.3)" />
-      <path d="M18 28 L18 52" stroke={outline} strokeWidth="4" strokeLinecap="round" />
-      <path d="M18 28 L18 52" stroke="#D2D2D2" strokeWidth="1.8" strokeLinecap="round" />
-      <ellipse cx="18" cy="33" rx="15" ry="7" fill={dark} stroke={outline} strokeWidth="2" />
-      <ellipse cx="18" cy="30" rx="15" ry="7" fill={color} stroke={outline} strokeWidth="2" />
-      <ellipse cx="18" cy="29" rx="7" ry="2.5" fill={color} stroke={outline} strokeWidth="2" />
-      <rect x="11" y="13" width="14" height="16" fill={color} stroke="none" />
-      <line x1="11" y1="13" x2="11" y2="29" stroke={outline} strokeWidth="2" />
-      <line x1="25" y1="13" x2="25" y2="29" stroke={outline} strokeWidth="2" />
-      <rect x="13" y="15" width="3" height="12" rx="1.5" fill="#fff" opacity="0.3" />
-      <ellipse cx="18" cy="9" rx="11" ry="6" fill={color} stroke={outline} strokeWidth="2.2" />
-      <ellipse cx="14" cy="7" rx="3" ry="2" fill="#fff" opacity="0.45" transform="rotate(-15 14 7)" />
+    <svg width="26" height="36" viewBox="0 0 26 36" style={{ filter: "drop-shadow(0 4px 4px rgba(0,0,0,0.35))", ...style }}>
+      <ellipse cx="13" cy="32" rx="2.6" ry="1.2" fill="rgba(0,0,0,0.25)" />
+      <line x1="13" y1="19" x2="13" y2="30" stroke={outline} strokeWidth="2" strokeLinecap="round" />
+      <circle cx="13" cy="12" r="11" fill={color} stroke={outline} strokeWidth="1.5" />
+      <circle cx="9.5" cy="8.5" r="3.2" fill="#fff" opacity="0.35" />
     </svg>
   );
 }
@@ -855,7 +846,7 @@ function ArchedTitle({ name, index }) {
     return (
       <svg viewBox="0 0 320 220" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
         <defs><path id={pathId} d={singlePath} /></defs>
-        <text fontSize={fontSize} textLength={targetLength} lengthAdjust="spacingAndGlyphs" fill="none" stroke="#FFFFFF" strokeWidth="5.5" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
+        <text fontSize={fontSize} textLength={targetLength} lengthAdjust="spacingAndGlyphs" fill="#2A1509" stroke="#FFFFFF" strokeWidth="5" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
           <textPath href={`#${pathId}`} startOffset="50%" textAnchor="middle">{name}</textPath>
         </text>
       </svg>
@@ -874,10 +865,10 @@ function ArchedTitle({ name, index }) {
         <path id={id1} d={topPath} />
         <path id={id2} d={bottomPath} />
       </defs>
-      <text fontSize={fontSize} textLength={len1} lengthAdjust="spacingAndGlyphs" fill="none" stroke="#FFFFFF" strokeWidth="5" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
+      <text fontSize={fontSize} textLength={len1} lengthAdjust="spacingAndGlyphs" fill="#2A1509" stroke="#FFFFFF" strokeWidth="4.5" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
         <textPath href={`#${id1}`} startOffset="50%" textAnchor="middle">{line1}</textPath>
       </text>
-      <text fontSize={fontSize} textLength={len2} lengthAdjust="spacingAndGlyphs" fill="none" stroke="#FFFFFF" strokeWidth="5" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
+      <text fontSize={fontSize} textLength={len2} lengthAdjust="spacingAndGlyphs" fill="#2A1509" stroke="#FFFFFF" strokeWidth="4.5" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
         <textPath href={`#${id2}`} startOffset="50%" textAnchor="middle">{line2}</textPath>
       </text>
     </svg>
@@ -895,7 +886,7 @@ function TripCard({ trip, index, onOpen, onDelete, flipping, onStartFlip }) {
     <div className="pm-card-wrap" style={{ position: "relative" }}>
       <Thumbtack
         color={tone}
-        style={{ position: "absolute", top: -16, left: index % 2 === 0 ? 18 : "auto", right: index % 2 === 0 ? "auto" : 18, transform: `scale(0.72) rotate(${pinRot}deg)`, transformOrigin: "top center", zIndex: 3 }}
+        style={{ position: "absolute", top: -12, left: index % 2 === 0 ? 22 : "auto", right: index % 2 === 0 ? "auto" : 22, transform: `rotate(${pinRot}deg)`, transformOrigin: "top center", zIndex: 3 }}
       />
       <div
         onClick={() => onStartFlip(trip.id)}
@@ -919,7 +910,7 @@ function TripCard({ trip, index, onOpen, onDelete, flipping, onStartFlip }) {
           <X size={12} color="#fff" />
         </button>
 
-        <div style={{ position: "relative", height: 150, borderRadius: "2px 7px 3px 6px", overflow: "hidden", background: trip.coverImage ? `center / cover no-repeat url(${trip.coverImage})` : gradient, border: "2px solid rgba(0,0,0,0.65)", filter: "url(#pm-cartoonize) brightness(1.05)" }}>
+        <div style={{ position: "relative", height: 150, borderRadius: "2px 7px 3px 6px", overflow: "hidden", background: trip.coverImage ? `center / cover no-repeat url(${trip.coverImage})` : gradient, border: "2px solid rgba(0,0,0,0.65)", filter: "url(#pm-cartoonize)" }}>
           <ArchedTitle name={trip.name} index={index} />
         </div>
         <PostmarkStamp accent={stampAccent} index={index} topText={`★ ${formatDateShort(trip.days[0] ? trip.days[0].date : "")} ★`} />
@@ -944,11 +935,11 @@ function HomeView({ trips, onOpen, onNew, onDelete }) {
     <div>
       <svg width="0" height="0" style={{ position: "absolute" }}>
         <filter id="pm-cartoonize" colorInterpolationFilters="sRGB">
-          <feColorMatrix type="saturate" values="0.82" />
+          <feColorMatrix type="saturate" values="1.35" />
           <feComponentTransfer>
-            <feFuncR type="discrete" tableValues="0.28 0.46 0.64 0.82 0.97" />
-            <feFuncG type="discrete" tableValues="0.28 0.46 0.64 0.82 0.97" />
-            <feFuncB type="discrete" tableValues="0.28 0.46 0.64 0.82 0.97" />
+            <feFuncR type="discrete" tableValues="0.1 0.32 0.56 0.8 1" />
+            <feFuncG type="discrete" tableValues="0.1 0.32 0.56 0.8 1" />
+            <feFuncB type="discrete" tableValues="0.1 0.32 0.56 0.8 1" />
           </feComponentTransfer>
         </filter>
       </svg>
@@ -1641,7 +1632,7 @@ function ActivityDragPreview({ activity, index, trip }) {
   }
   return (
     <div style={{ background: PAIR_WASHED.color, borderRadius: 8, padding: 10, boxShadow: "0 10px 24px rgba(0,0,0,0.3)", minWidth: 200, cursor: "grabbing" }}>
-      <div className="pm-mono" style={{ fontSize: 9, color: "rgba(38,66,43,0.7)" }}>STOP {index + 1}</div>
+      <div className="pm-mono" style={{ fontSize: 9, color: "rgba(31,86,115,0.7)" }}>STOP {index + 1}</div>
       <div style={{ fontSize: 13, fontWeight: 700, marginTop: 2, color: PAIR_WASHED.textColor }}>{label}</div>
     </div>
   );
@@ -1724,7 +1715,7 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, dragHandleP
         <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
           <DragHandleStack dragHandleProps={dragHandleProps} onUp={onMoveUp} onDown={onMoveDown} canUp={canMoveUp} canDown={canMoveDown} />
           <div style={{ minWidth: 0 }}>
-            <div className="pm-mono" style={{ fontSize: 11, color: "rgba(38,66,43,0.7)" }}>{formatDate(day.date)}</div>
+            <div className="pm-mono" style={{ fontSize: 11, color: "rgba(31,86,115,0.7)" }}>{formatDate(day.date)}</div>
             <div style={{ fontSize: 17, fontWeight: 700, marginTop: 2, color: p.textColor }}>{hideCity ? (day.blurb || "Untitled day") : (day.city || "Untitled stop")}</div>
           </div>
         </div>
@@ -1924,7 +1915,7 @@ function StashSection({ title, icon: Icon, items, renderItem, onAdd, onRemove, f
 function DropZone({ id, children }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
-    <div ref={setNodeRef} style={{ border: `2px solid ${isOver ? "var(--rust)" : "rgba(38,66,43,0.35)"}`, borderRadius: 10, padding: 10, minHeight: 46, background: isOver ? "rgba(237,103,37,0.16)" : "rgba(201,214,201,0.4)", transition: "background 0.1s ease, border-color 0.1s ease" }}>
+    <div ref={setNodeRef} style={{ border: `2px solid ${isOver ? "var(--rust)" : "rgba(31,86,115,0.35)"}`, borderRadius: 10, padding: 10, minHeight: 46, background: isOver ? "rgba(237,103,37,0.16)" : "rgba(203,225,240,0.4)", transition: "background 0.1s ease, border-color 0.1s ease" }}>
       {children}
     </div>
   );
