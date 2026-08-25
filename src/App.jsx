@@ -897,8 +897,8 @@ function TripCard({ trip, index, onOpen, onDelete, flipping, onStartFlip }) {
           <X size={12} color="#fff" />
         </button>
 
-        <div style={{ position: "relative", height: 150, borderRadius: "2px 7px 3px 6px", overflow: "hidden", background: trip.coverImage ? `center / cover no-repeat url(${trip.coverImage})` : gradient, border: "2px solid rgba(0,0,0,0.65)", filter: "url(#pm-cartoonize)" }}>
-          {trip.coverImage && <div style={{ position: "absolute", inset: 0, background: "var(--oatmilk)", opacity: 0.22, mixBlendMode: "multiply", pointerEvents: "none" }} />}
+        <div style={{ position: "relative", height: 150, borderRadius: "2px 7px 3px 6px", overflow: "hidden", border: "2px solid rgba(0,0,0,0.65)" }}>
+          <div style={{ position: "absolute", inset: 0, background: trip.coverImage ? `linear-gradient(rgba(249,245,230,0.3), rgba(249,245,230,0.3)), center / cover no-repeat url(${trip.coverImage})` : gradient, backgroundBlendMode: trip.coverImage ? "multiply" : "normal", filter: "url(#pm-cartoonize)" }} />
           <ArchedTitle name={trip.name} index={index} />
         </div>
         <PostmarkStamp accent={stampAccent} index={index} topText={`★ ${formatDateShort(trip.days[0] ? trip.days[0].date : "")} ★`} />
