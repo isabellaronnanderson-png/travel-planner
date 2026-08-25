@@ -756,11 +756,11 @@ function Textured({ color, base, seed, style, className, children, radius, onCli
 function Thumbtack({ color, style }) {
   const outline = shadeColor(color, -55);
   return (
-    <svg width="26" height="36" viewBox="0 0 26 36" style={{ filter: "drop-shadow(0 4px 4px rgba(0,0,0,0.35))", ...style }}>
-      <ellipse cx="13" cy="32" rx="2.6" ry="1.2" fill="rgba(0,0,0,0.25)" />
-      <line x1="13" y1="19" x2="13" y2="30" stroke={outline} strokeWidth="2" strokeLinecap="round" />
-      <circle cx="13" cy="12" r="11" fill={color} stroke={outline} strokeWidth="1.5" />
-      <circle cx="9.5" cy="8.5" r="3.2" fill="#fff" opacity="0.35" />
+    <svg width="20" height="34" viewBox="0 0 20 34" style={{ filter: "drop-shadow(0 4px 4px rgba(0,0,0,0.35))", ...style }}>
+      <ellipse cx="10" cy="31" rx="2.4" ry="1.1" fill="rgba(0,0,0,0.25)" />
+      <line x1="10" y1="20" x2="10" y2="29" stroke={outline} strokeWidth="1.6" strokeLinecap="round" />
+      <circle cx="10" cy="13" r="6.5" fill={color} stroke={outline} strokeWidth="1.2" />
+      <circle cx="8" cy="10.8" r="1.9" fill="#fff" opacity="0.35" />
     </svg>
   );
 }
@@ -898,7 +898,7 @@ function TripCard({ trip, index, onOpen, onDelete, flipping, onStartFlip }) {
         </button>
 
         <div style={{ position: "relative", height: 150, borderRadius: "2px 7px 3px 6px", overflow: "hidden", border: "2px solid rgba(0,0,0,0.65)" }}>
-          <div style={{ position: "absolute", inset: 0, background: trip.coverImage ? `linear-gradient(rgba(249,245,230,0.3), rgba(249,245,230,0.3)), center / cover no-repeat url(${trip.coverImage})` : gradient, backgroundBlendMode: trip.coverImage ? "multiply" : "normal", filter: "url(#pm-cartoonize)" }} />
+          <div style={{ position: "absolute", inset: 0, background: trip.coverImage ? `center / cover no-repeat url(${trip.coverImage})` : gradient, filter: "url(#pm-cartoonize)" }} />
           <ArchedTitle name={trip.name} index={index} />
         </div>
         <PostmarkStamp accent={stampAccent} index={index} topText={`★ ${formatDateShort(trip.days[0] ? trip.days[0].date : "")} ★`} />
@@ -923,11 +923,10 @@ function HomeView({ trips, onOpen, onNew, onDelete }) {
     <div>
       <svg width="0" height="0" style={{ position: "absolute" }}>
         <filter id="pm-cartoonize" colorInterpolationFilters="sRGB">
-          <feColorMatrix type="saturate" values="0.6" />
           <feComponentTransfer>
-            <feFuncR type="discrete" tableValues="0.22 0.42 0.62 0.82" />
-            <feFuncG type="discrete" tableValues="0.22 0.42 0.62 0.82" />
-            <feFuncB type="discrete" tableValues="0.22 0.42 0.62 0.82" />
+            <feFuncR type="discrete" tableValues="0 0.25 0.5 0.75 1" />
+            <feFuncG type="discrete" tableValues="0 0.25 0.5 0.75 1" />
+            <feFuncB type="discrete" tableValues="0 0.25 0.5 0.75 1" />
           </feComponentTransfer>
         </filter>
       </svg>
