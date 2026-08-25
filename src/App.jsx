@@ -721,21 +721,8 @@ function Textured({ color, base, seed, style, className, children, radius, onCli
   const s = typeof seed === "number" ? seed : 4;
 
   if (texture === "woven") {
-    const tile = 1.6, half = 0.8, op = 0.045;
     return (
-      <div className={className} onClick={onClick} style={{ position: "relative", overflow: "hidden", borderRadius: radius, ...style }}>
-        <svg width="100%" height="100%" preserveAspectRatio="none" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block" }}>
-          <defs>
-            <pattern id={`weave-${id}`} width={tile} height={tile} patternUnits="userSpaceOnUse">
-              <rect width={tile} height={tile} fill={color} />
-              <rect x="0" y="0" width={tile} height={half} fill="#fff" opacity={op} />
-              <rect x="0" y={half} width={tile} height={half} fill="#000" opacity={op * 0.6} />
-              <rect x="0" y="0" width={half} height={tile} fill="#000" opacity={op * 0.4} />
-              <rect x={half} y="0" width={half} height={tile} fill="#fff" opacity={op * 0.5} />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill={`url(#weave-${id})`} />
-        </svg>
+      <div className={className} onClick={onClick} style={{ position: "relative", overflow: "hidden", borderRadius: radius, background: color, ...style }}>
         <div style={{ position: "relative", zIndex: 1 }}>{children}</div>
       </div>
     );
@@ -846,7 +833,7 @@ function ArchedTitle({ name, index }) {
     return (
       <svg viewBox="0 0 320 220" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
         <defs><path id={pathId} d={singlePath} /></defs>
-        <text fontSize={fontSize} textLength={targetLength} lengthAdjust="spacingAndGlyphs" fill="#2A1509" stroke="#FFFFFF" strokeWidth="5" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
+        <text fontSize={fontSize} textLength={targetLength} lengthAdjust="spacingAndGlyphs" fill="#FFFFFF" stroke="#2A1509" strokeWidth="3.5" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
           <textPath href={`#${pathId}`} startOffset="50%" textAnchor="middle">{name}</textPath>
         </text>
       </svg>
@@ -865,10 +852,10 @@ function ArchedTitle({ name, index }) {
         <path id={id1} d={topPath} />
         <path id={id2} d={bottomPath} />
       </defs>
-      <text fontSize={fontSize} textLength={len1} lengthAdjust="spacingAndGlyphs" fill="#2A1509" stroke="#FFFFFF" strokeWidth="4.5" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
+      <text fontSize={fontSize} textLength={len1} lengthAdjust="spacingAndGlyphs" fill="#FFFFFF" stroke="#2A1509" strokeWidth="3" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
         <textPath href={`#${id1}`} startOffset="50%" textAnchor="middle">{line1}</textPath>
       </text>
-      <text fontSize={fontSize} textLength={len2} lengthAdjust="spacingAndGlyphs" fill="#2A1509" stroke="#FFFFFF" strokeWidth="4.5" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
+      <text fontSize={fontSize} textLength={len2} lengthAdjust="spacingAndGlyphs" fill="#FFFFFF" stroke="#2A1509" strokeWidth="3" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
         <textPath href={`#${id2}`} startOffset="50%" textAnchor="middle">{line2}</textPath>
       </text>
     </svg>
@@ -911,6 +898,7 @@ function TripCard({ trip, index, onOpen, onDelete, flipping, onStartFlip }) {
         </button>
 
         <div style={{ position: "relative", height: 150, borderRadius: "2px 7px 3px 6px", overflow: "hidden", background: trip.coverImage ? `center / cover no-repeat url(${trip.coverImage})` : gradient, border: "2px solid rgba(0,0,0,0.65)", filter: "url(#pm-cartoonize)" }}>
+          {trip.coverImage && <div style={{ position: "absolute", inset: 0, background: "var(--oatmilk)", opacity: 0.22, mixBlendMode: "multiply", pointerEvents: "none" }} />}
           <ArchedTitle name={trip.name} index={index} />
         </div>
         <PostmarkStamp accent={stampAccent} index={index} topText={`★ ${formatDateShort(trip.days[0] ? trip.days[0].date : "")} ★`} />
@@ -935,11 +923,11 @@ function HomeView({ trips, onOpen, onNew, onDelete }) {
     <div>
       <svg width="0" height="0" style={{ position: "absolute" }}>
         <filter id="pm-cartoonize" colorInterpolationFilters="sRGB">
-          <feColorMatrix type="saturate" values="1.35" />
+          <feColorMatrix type="saturate" values="0.6" />
           <feComponentTransfer>
-            <feFuncR type="discrete" tableValues="0.1 0.32 0.56 0.8 1" />
-            <feFuncG type="discrete" tableValues="0.1 0.32 0.56 0.8 1" />
-            <feFuncB type="discrete" tableValues="0.1 0.32 0.56 0.8 1" />
+            <feFuncR type="discrete" tableValues="0.22 0.42 0.62 0.82" />
+            <feFuncG type="discrete" tableValues="0.22 0.42 0.62 0.82" />
+            <feFuncB type="discrete" tableValues="0.22 0.42 0.62 0.82" />
           </feComponentTransfer>
         </filter>
       </svg>
