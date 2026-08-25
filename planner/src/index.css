@@ -1,0 +1,78 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,wght@0,400;0,500;1,400&display=swap');
+
+:root {
+  --bg: #FFFFFF;
+  --surface: #FAFAF9;
+  --surface-hover: #F3F3F1;
+  --border: #E8E8E6;
+  --border-strong: #D8D8D5;
+
+  --text: #111111;
+  --text-secondary: #6B6B68;
+  --text-muted: #9A9A96;
+
+  --navy: #1E3A5F;
+  --navy-bg: #EBF0F5;
+  --red: #7A1F2B;
+  --red-bg: #F7EBEC;
+  --olive: #4B5A32;
+  --plum: #5C4B51;
+  --rust: #8A4B2E;
+
+  --radius: 6px;
+  --radius-lg: 10px;
+
+  --font-display: 'Newsreader', Georgia, serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  max-width: 1320px;
+  margin: 0 auto;
+  min-height: 100vh;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+input, select, textarea, button {
+  font-family: inherit;
+  font-size: 14px;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 4px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
