@@ -373,20 +373,12 @@ function useGoogleMapsReady() {
 }
 
 function thumbtackIconUrl(main) {
-  const dark = shadeColor(main, -18);
-  const outline = shadeColor(main, -85);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="58" viewBox="0 0 36 58">
-    <path d="M18 28 L18 52" stroke="${outline}" stroke-width="4" stroke-linecap="round"/>
-    <path d="M18 28 L18 52" stroke="#D2D2D2" stroke-width="1.8" stroke-linecap="round"/>
-    <ellipse cx="18" cy="33" rx="15" ry="7" fill="${dark}" stroke="${outline}" stroke-width="2"/>
-    <ellipse cx="18" cy="30" rx="15" ry="7" fill="${main}" stroke="${outline}" stroke-width="2"/>
-    <ellipse cx="18" cy="29" rx="7" ry="2.5" fill="${main}" stroke="${outline}" stroke-width="2"/>
-    <rect x="11" y="13" width="14" height="16" fill="${main}" stroke="none"/>
-    <line x1="11" y1="13" x2="11" y2="29" stroke="${outline}" stroke-width="2"/>
-    <line x1="25" y1="13" x2="25" y2="29" stroke="${outline}" stroke-width="2"/>
-    <rect x="13" y="15" width="3" height="12" rx="1.5" fill="#fff" opacity="0.3"/>
-    <ellipse cx="18" cy="9" rx="11" ry="6" fill="${main}" stroke="${outline}" stroke-width="2.2"/>
-    <ellipse cx="14" cy="7" rx="3" ry="2" fill="#fff" opacity="0.45" transform="rotate(-15 14 7)"/>
+  const outline = shadeColor(main, -55);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="34" viewBox="0 0 20 34">
+    <ellipse cx="10" cy="31" rx="2.4" ry="1.1" fill="rgba(0,0,0,0.25)"/>
+    <line x1="10" y1="20" x2="10" y2="29" stroke="${outline}" stroke-width="1.6" stroke-linecap="round"/>
+    <circle cx="10" cy="13" r="6.5" fill="${main}" stroke="${outline}" stroke-width="1.2"/>
+    <circle cx="8" cy="10.8" r="1.9" fill="#fff" opacity="0.35"/>
   </svg>`;
   return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
 }
@@ -923,6 +915,7 @@ function HomeView({ trips, onOpen, onNew, onDelete }) {
     <div>
       <svg width="0" height="0" style={{ position: "absolute" }}>
         <filter id="pm-cartoonize" colorInterpolationFilters="sRGB">
+          <feColorMatrix type="saturate" values="0.7" />
           <feComponentTransfer>
             <feFuncR type="discrete" tableValues="0 0.25 0.5 0.75 1" />
             <feFuncG type="discrete" tableValues="0 0.25 0.5 0.75 1" />
@@ -1231,7 +1224,15 @@ function TripView({ trip, onBack, updateTrip }) {
           updateTrip={updateTrip}
         />
       )}
-      {tab === "overview" && <OverviewTab trip={trip} updateTrip={updateTrip} />}
+      {tab === "overview" && (
+        <OverviewTab
+          trip={trip}
+          updateTrip={updateTrip}
+          addSection={addSection}
+          updateSection={updateSection}
+          removeSection={removeSection}
+        />
+      )}
       {tab === "stops" && <StopsTab trip={trip} updateTrip={updateTrip} onPlan={() => setTab("overview")} />}
 
       {showEdit && (
@@ -1953,7 +1954,7 @@ function DraggableNote({ note, onChange, onRemove }) {
   );
 }
 
-function OverviewTab({ trip, updateTrip }) {
+function OverviewTab({ trip, updateTrip, addSection, updateSection, removeSection }) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
   const [filter, setFilter] = useState("all");
   const [expandedPinId, setExpandedPinId] = useState(null);
@@ -2000,6 +2001,21 @@ function OverviewTab({ trip, updateTrip }) {
   function savePin(id, patch) { updateTrip((t) => ({ ...t, pins: t.pins.map((p) => (p.id === id ? { ...p, ...patch } : p)) })); setExpandedPinId(null); }
   function removePin(id) { updateTrip((t) => ({ ...t, pins: t.pins.filter((p) => p.id !== id) })); setExpandedPinId(null); }
 
+  function handleSectionDrop(e, dayId) {
+    e.preventDefault();
+    const data = parseDragData(e);
+    if (data && data.type === "section" && dayId) updateSection(data.sectionId, (s) => ({ ...s, beforeDayId: dayId }));
+  }
+  function handleTrailingSectionDrop(e) {
+    e.preventDefault();
+    const data = parseDragData(e);
+    if (data && data.type === "section") updateSection(data.sectionId, (s) => ({ ...s, beforeDayId: null }));
+  }
+
+  const showGroups = trip.type !== "single";
+  const dayIds = new Set(days.map((d) => d.id));
+  const trailingSections = showGroups ? (trip.sections || []).filter((s) => !s.beforeDayId || !dayIds.has(s.beforeDayId)) : [];
+
   const unscheduledPins = pins.filter((p) => !p.dayId);
   const unscheduledNotes = notes.filter((n) => !n.dayId);
   const activePin = activeItem && activeItem.type === "pin" ? trip.pins.find((p) => p.id === activeItem.id) : null;
@@ -2035,31 +2051,60 @@ function OverviewTab({ trip, updateTrip }) {
           </DropZone>
         </div>
 
+        {showGroups && (
+          <div style={{ marginBottom: 12 }}>
+            <AddSectionButton firstDayId={days[0] ? days[0].id : null} onAdd={addSection} />
+          </div>
+        )}
+
         <div style={{ display: "grid", gap: 10 }}>
           {days.map((day, i) => {
             const dayPins = pins.filter((p) => p.dayId === day.id);
             const dayNotes = notes.filter((n) => n.dayId === day.id);
+            const dayGroups = showGroups ? (trip.sections || []).filter((s) => s.beforeDayId === day.id) : [];
             return (
-              <div key={day.id} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                <div className="pm-mono" style={{ width: 24, height: 24, borderRadius: "50%", background: "#3C2A1A", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, flexShrink: 0, marginTop: 10 }}>{i + 1}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="pm-mono" style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 4 }}>{day.city || formatDateShort(day.date)}</div>
-                  <DropZone id={day.id}>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                      {dayPins.map((pin) => (
-                        <DraggablePin key={pin.id} pin={pin} categories={categories} days={days} expanded={expandedPinId === pin.id} onToggle={() => setExpandedPinId(expandedPinId === pin.id ? null : pin.id)} onSave={savePin} onRemove={removePin} />
-                      ))}
-                      {dayNotes.map((note) => (
-                        <DraggableNote key={note.id} note={note} onChange={(text) => updateNote(note.id, text)} onRemove={() => removeNote(note.id)} />
-                      ))}
-                      {dayPins.length === 0 && dayNotes.length === 0 && <span style={{ fontSize: 11, color: "var(--ink-soft)", opacity: 0.5 }}>drop here</span>}
-                    </div>
-                  </DropZone>
+              <React.Fragment key={day.id}>
+                {dayGroups.map((section) => (
+                  <div key={section.id} style={{ marginLeft: 34 }}>
+                    <SectionHeader section={section} onUpdate={(fn) => updateSection(section.id, fn)} onRemove={() => removeSection(section.id)} />
+                  </div>
+                ))}
+                <div
+                  onDragOver={showGroups ? (e) => e.preventDefault() : undefined}
+                  onDrop={showGroups ? (e) => handleSectionDrop(e, day.id) : undefined}
+                  style={{ display: "flex", gap: 10, alignItems: "flex-start" }}
+                >
+                  <div className="pm-mono" style={{ width: 24, height: 24, borderRadius: "50%", background: "#3C2A1A", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, flexShrink: 0, marginTop: 10 }}>{i + 1}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="pm-mono" style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 4 }}>{day.city || formatDateShort(day.date)}</div>
+                    <DropZone id={day.id}>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                        {dayPins.map((pin) => (
+                          <DraggablePin key={pin.id} pin={pin} categories={categories} days={days} expanded={expandedPinId === pin.id} onToggle={() => setExpandedPinId(expandedPinId === pin.id ? null : pin.id)} onSave={savePin} onRemove={removePin} />
+                        ))}
+                        {dayNotes.map((note) => (
+                          <DraggableNote key={note.id} note={note} onChange={(text) => updateNote(note.id, text)} onRemove={() => removeNote(note.id)} />
+                        ))}
+                        {dayPins.length === 0 && dayNotes.length === 0 && <span style={{ fontSize: 11, color: "var(--ink-soft)", opacity: 0.5 }}>drop here</span>}
+                      </div>
+                    </DropZone>
+                  </div>
                 </div>
-              </div>
+              </React.Fragment>
             );
           })}
         </div>
+
+        {showGroups && trailingSections.length > 0 && (
+          <div style={{ marginLeft: 34, marginTop: 10 }}>
+            {trailingSections.map((section) => (
+              <SectionHeader key={section.id} section={section} onUpdate={(fn) => updateSection(section.id, fn)} onRemove={() => removeSection(section.id)} />
+            ))}
+          </div>
+        )}
+        {showGroups && (
+          <div onDragOver={(e) => e.preventDefault()} onDrop={handleTrailingSectionDrop} style={{ height: 20 }} />
+        )}
 
         <DragOverlay>
           {activePin && (
@@ -2302,8 +2347,8 @@ function StopsTab({ trip, updateTrip, onPlan }) {
         title: pin.name,
         icon: {
           url: thumbtackIconUrl(meta.color),
-          scaledSize: new window.google.maps.Size(17, 27),
-          anchor: new window.google.maps.Point(8, 24),
+          scaledSize: new window.google.maps.Size(14, 24),
+          anchor: new window.google.maps.Point(7, 20),
         },
       });
       marker.addListener("click", () => { setEditingPinId(pin.id); setPendingLatLng(null); });
