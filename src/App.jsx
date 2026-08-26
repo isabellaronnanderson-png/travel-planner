@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
-  MapPin, Plus, X, ChevronDown, ChevronUp, ArrowLeft, Search, GripVertical,
+  MapPin, Plus, X, ChevronDown, ChevronUp, ArrowLeft, Search, GripVertical, Flag,
   Map as MapIcon, BookOpen, Tag, KeyRound, BedDouble, Utensils,
   Link2, Compass, Trash2, PenLine, LayoutGrid, Camera,
   Coffee, ShoppingBag, Mountain, Waves, Ticket, Wine, Landmark, Bike, Music, Car, Fish, IceCreamCone,
@@ -1554,7 +1554,7 @@ function AddSectionButton({ firstDayId, onAdd }) {
 function SectionHeader({ section, onUpdate, onRemove }) {
   const [dragging, setDragging] = useState(false);
   return (
-    <div style={{ marginBottom: 14, marginTop: 6, opacity: dragging ? 0.4 : 1 }}>
+    <div style={{ marginBottom: 10, marginTop: 4, opacity: dragging ? 0.4 : 1 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 0 }}>
           <span
@@ -1563,16 +1563,16 @@ function SectionHeader({ section, onUpdate, onRemove }) {
             onDragEnd={() => setDragging(false)}
             style={{ display: "flex", cursor: "grab", flexShrink: 0 }}
           >
-            <GripVertical size={16} style={{ color: "var(--ink-soft)", opacity: 0.4 }} />
+            <GripVertical size={14} style={{ color: "var(--ink-soft)", opacity: 0.4 }} />
           </span>
+          <Flag size={13} style={{ color: "var(--rust)", opacity: 0.7, flexShrink: 0 }} />
           <input
-            className="pm-display"
             value={section.label}
             onChange={(e) => onUpdate((s) => ({ ...s, label: arrowify(e.target.value) }))}
-            style={{ background: "transparent", border: "none", fontSize: 22, color: "var(--ink)", padding: 0, outline: "none", minWidth: 0, flex: 1 }}
+            style={{ background: "transparent", border: "none", fontSize: 15, fontWeight: 700, color: "var(--ink)", padding: 0, outline: "none", minWidth: 0, flex: 1, fontFamily: "inherit" }}
           />
         </div>
-        <button onClick={onRemove} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)" }} aria-label="Remove group"><X size={14} /></button>
+        <button onClick={onRemove} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)" }} aria-label="Remove group"><X size={13} /></button>
       </div>
       <StashPocket stash={section.stash} updateStash={(fn) => onUpdate((s) => ({ ...s, stash: fn(s.stash) }))} label="Group notes" />
     </div>
@@ -1813,11 +1813,6 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, dragHandleP
 function StashPocket({ stash, updateStash, defaultOpen, label }) {
   const [open, setOpen] = useState(!!defaultOpen);
 
-  function addHotel(item) { updateStash((s) => ({ ...s, hotels: [...s.hotels, { id: uid(), ...item }] })); }
-  function addSpot(item) { updateStash((s) => ({ ...s, spots: [...s.spots, { id: uid(), ...item }] })); }
-  function addCode(item) { updateStash((s) => ({ ...s, codes: [...s.codes, { id: uid(), ...item }] })); }
-  function removeItem(kind, id) { updateStash((s) => ({ ...s, [kind]: s[kind].filter((x) => x.id !== id) })); }
-
   return (
     <div style={{ marginTop: 16 }}>
       <button onClick={() => setOpen(!open)} className="pm-mono" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)", fontSize: 11, display: "flex", alignItems: "center", gap: 6, padding: 0 }}>
@@ -1826,74 +1821,15 @@ function StashPocket({ stash, updateStash, defaultOpen, label }) {
       </button>
 
       {open && (
-        <div style={{ marginTop: 12, background: "rgba(185,138,46,0.10)", border: "1px dashed var(--gold)", borderRadius: 10, padding: 14, display: "grid", gap: 16 }}>
-          <StashSection title="Hotels considered" icon={BedDouble} items={stash.hotels}
-            renderItem={(item) => (<>
-              <div style={{ fontWeight: 700, fontSize: 13 }}>{item.name}</div>
-              {item.note && <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>{item.note}</div>}
-              {item.link && <a href={item.link} target="_blank" rel="noreferrer" className="pm-mono" style={{ fontSize: 11, color: "var(--navy)" }}>{item.link}</a>}
-            </>)}
-            onAdd={addHotel} onRemove={(id) => removeItem("hotels", id)} fields={["name", "link", "note"]} />
-          <StashSection title="Spots to maybe check out" icon={Tag} items={stash.spots}
-            renderItem={(item) => (<>
-              <div style={{ fontWeight: 700, fontSize: 13 }}>{item.name}</div>
-              {item.note && <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>{item.note}</div>}
-              {item.link && <a href={item.link} target="_blank" rel="noreferrer" className="pm-mono" style={{ fontSize: 11, color: "var(--navy)" }}>{item.link}</a>}
-            </>)}
-            onAdd={addSpot} onRemove={(id) => removeItem("spots", id)} fields={["name", "link", "note"]} />
-          <StashSection title="Booking codes" icon={KeyRound} items={stash.codes}
-            renderItem={(item) => (<>
-              <span style={{ fontSize: 13 }}>{item.label}</span>
-              <span className="pm-mono" style={{ fontSize: 12, marginLeft: 8, color: "var(--rust)" }}>{item.value}</span>
-            </>)}
-            onAdd={addCode} onRemove={(id) => removeItem("codes", id)} fields={["label", "value"]} />
-        </div>
-      )}
-    </div>
-  );
-}
-
-function StashSection({ title, icon: Icon, items, renderItem, onAdd, onRemove, fields }) {
-  const [showForm, setShowForm] = useState(false);
-  const [draft, setDraft] = useState({});
-
-  function submit() {
-    if (!draft[fields[0]]) return;
-    onAdd(draft);
-    setDraft({});
-    setShowForm(false);
-  }
-
-  return (
-    <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div className="pm-mono" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--ink-soft)" }}>
-          <Icon size={13} /> {title}
-        </div>
-        <button onClick={() => setShowForm(!showForm)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--rust)" }} aria-label={`Add to ${title}`}>
-          <Plus size={14} />
-        </button>
-      </div>
-
-      <div style={{ marginTop: 8, display: "grid", gap: 8 }}>
-        {items.map((item) => (
-          <div key={item.id} style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, background: "#FFFDF9", border: "1px solid rgba(46,43,38,0.1)", borderRadius: 6, padding: "8px 10px" }}>
-            <div style={{ minWidth: 0 }}>{renderItem(item)}</div>
-            <button onClick={() => onRemove(item.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)", flexShrink: 0 }} aria-label="Remove"><X size={13} /></button>
-          </div>
-        ))}
-        {items.length === 0 && !showForm && <div style={{ fontSize: 12, color: "var(--ink-soft)", fontStyle: "italic" }}>Nothing tucked in yet.</div>}
-      </div>
-
-      {showForm && (
-        <div style={{ marginTop: 8, display: "grid", gap: 6 }}>
-          {fields.map((f) => (
-            <input key={f} className="pm-input" style={{ fontSize: 13, padding: "6px 8px" }} placeholder={f === "link" ? "link (optional)" : f} value={draft[f] || ""} onChange={(e) => setDraft({ ...draft, [f]: e.target.value })} />
-          ))}
-          <div style={{ display: "flex", gap: 6 }}>
-            <button className="pm-btn pm-btn-solid" style={{ fontSize: 11, padding: "5px 10px" }} onClick={submit}>Add</button>
-            <button className="pm-btn pm-btn-ghost" style={{ fontSize: 11, padding: "5px 10px", color: "var(--ink)", borderColor: "rgba(46,43,38,0.3)" }} onClick={() => { setShowForm(false); setDraft({}); }}>Cancel</button>
-          </div>
+        <div style={{ marginTop: 12 }}>
+          <textarea
+            className="pm-input"
+            value={stash.notes || ""}
+            onChange={(e) => updateStash((s) => ({ ...s, notes: e.target.value }))}
+            placeholder="Booking codes, confirmation numbers, anything worth keeping handy…"
+            rows={4}
+            style={{ width: "100%", resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 }}
+          />
         </div>
       )}
     </div>
@@ -1914,21 +1850,20 @@ function DraggablePin({ pin, categories, days, expanded, onToggle, onSave, onRem
   const meta = catMeta({ categories }, pin.category);
   const Icon = iconFor(meta.icon);
   const style = { transform: CSS.Translate.toString(transform), opacity: isDragging ? 0.4 : 1, zIndex: isDragging ? 5 : "auto" };
-  const p = PAIR_WASHED;
   return (
     <div ref={setNodeRef} style={{ ...style, display: "inline-flex", flexDirection: "column", borderRadius: 10, overflow: "hidden" }}>
-      <Textured color={p.color} texture="woven">
+      <div style={{ background: "var(--forest)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <span {...listeners} {...attributes} style={{ cursor: "grab", touchAction: "none", display: "flex", padding: "6px 0 6px 8px", flexShrink: 0 }}><GripVertical size={11} style={{ opacity: 0.6, color: p.textColor }} /></span>
+          <span {...listeners} {...attributes} style={{ cursor: "grab", touchAction: "none", display: "flex", padding: "6px 0 6px 8px", flexShrink: 0 }}><GripVertical size={11} style={{ opacity: 0.7, color: "#fff" }} /></span>
           <button
             onClick={onToggle}
             className="pm-mono"
-            style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, padding: "6px 10px 6px 4px", background: "none", border: "none", cursor: "pointer", color: p.textColor }}
+            style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, padding: "6px 10px 6px 4px", background: "none", border: "none", cursor: "pointer", color: "#fff" }}
           >
-            <Icon size={11} style={{ color: p.textColor }} /> {pin.name}
+            <Icon size={11} style={{ color: "#fff" }} /> {pin.name}
           </button>
         </div>
-      </Textured>
+      </div>
       {expanded && (
         <div style={{ padding: 10, background: "#FFFDF9", borderTop: "1px solid rgba(46,43,38,0.12)", width: 230 }}>
           <PinForm days={days} categories={categories} initial={pin} hideDayField onCancel={onToggle} onSubmit={(patch) => onSave(pin.id, patch)} submitLabel="Save" />
@@ -1942,14 +1877,13 @@ function DraggablePin({ pin, categories, days, expanded, onToggle, onSave, onRem
 function DraggableNote({ note, onChange, onRemove }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: note.id, data: { type: "note" } });
   const style = { transform: CSS.Translate.toString(transform), opacity: isDragging ? 0.4 : 1, zIndex: isDragging ? 5 : "auto" };
-  const p = PAIR_WASHED;
   return (
     <div ref={setNodeRef} style={style}>
-      <Textured color={p.color} texture="woven" radius={14} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 6px 4px 8px" }}>
-        <span {...listeners} {...attributes} style={{ cursor: "grab", touchAction: "none", display: "flex" }}><GripVertical size={11} style={{ opacity: 0.6, color: p.textColor }} /></span>
-        <input value={note.text} onChange={(e) => onChange(e.target.value)} placeholder="Note…" className="pm-mono" style={{ border: "none", background: "transparent", fontSize: 11, outline: "none", width: 110, color: p.textColor }} />
-        <button onClick={onRemove} style={{ background: "none", border: "none", cursor: "pointer", color: p.textColor, opacity: 0.8, display: "flex" }} aria-label="Remove note"><X size={11} /></button>
-      </Textured>
+      <div style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 6px 4px 8px", borderRadius: 14, background: "var(--forest)" }}>
+        <span {...listeners} {...attributes} style={{ cursor: "grab", touchAction: "none", display: "flex" }}><GripVertical size={11} style={{ opacity: 0.7, color: "#fff" }} /></span>
+        <input value={note.text} onChange={(e) => onChange(e.target.value)} placeholder="Note…" className="pm-mono" style={{ border: "none", background: "transparent", fontSize: 11, outline: "none", width: 110, color: "#fff" }} />
+        <button onClick={onRemove} style={{ background: "none", border: "none", cursor: "pointer", color: "#fff", opacity: 0.85, display: "flex" }} aria-label="Remove note"><X size={11} /></button>
+      </div>
     </div>
   );
 }
