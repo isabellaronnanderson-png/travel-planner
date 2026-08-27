@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useContext } from "react";
 import {
-  MapPin, Plus, X, ChevronDown, ChevronUp, ArrowLeft, Search, GripVertical, Flag,
+  MapPin, Plus, X, ChevronDown, ChevronUp, ArrowLeft, Search, GripVertical, Flag, Settings,
   Map as MapIcon, BookOpen, Tag, KeyRound, BedDouble, Utensils,
   Link2, Compass, Trash2, PenLine, LayoutGrid, Camera,
   Coffee, ShoppingBag, Mountain, Waves, Ticket, Wine, Landmark, Bike, Music, Car, Fish, IceCreamCone,
@@ -11,6 +11,28 @@ import { CSS } from "@dnd-kit/utilities";
 
 const STORAGE_KEY = "roadbook:trips";
 const GMAPS_KEY_STORAGE = "postmark:gmaps-key";
+const STYLE_STORAGE_KEY = "postmark:style-settings";
+
+const DEFAULT_STYLE_SETTINGS = {
+  saturate: 0.7,
+  steps: 5,
+  range: 0,
+  titleFill: "#FFFFFF",
+  titleStroke: "#2A1509",
+  titleStrokeWidth: 3.5,
+};
+
+const StyleContext = React.createContext(DEFAULT_STYLE_SETTINGS);
+
+function posterizeTable(steps, range) {
+  const n = Math.max(2, Math.round(steps));
+  const vals = [];
+  for (let i = 0; i < n; i++) {
+    const t = i / (n - 1);
+    vals.push((range + t * (1 - 2 * range)).toFixed(3));
+  }
+  return vals.join(" ");
+}
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
@@ -388,6 +410,21 @@ export default function App() {
   const [loaded, setLoaded] = useState(false);
   const [activeTripId, setActiveTripId] = useState(null);
   const [showNewForm, setShowNewForm] = useState(false);
+  const [styleSettings, setStyleSettings] = useState(DEFAULT_STYLE_SETTINGS);
+  const [styleLoaded, setStyleLoaded] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STYLE_STORAGE_KEY);
+      if (raw) setStyleSettings({ ...DEFAULT_STYLE_SETTINGS, ...JSON.parse(raw) });
+    } catch (e) { /* ignore */ }
+    setStyleLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (!styleLoaded) return;
+    try { localStorage.setItem(STYLE_STORAGE_KEY, JSON.stringify(styleSettings)); } catch (e) { /* ignore */ }
+  }, [styleSettings, styleLoaded]);
 
   useEffect(() => {
     try {
@@ -476,6 +513,7 @@ export default function App() {
   const activeTrip = trips ? trips.find((t) => t.id === activeTripId) : null;
 
   return (
+    <StyleContext.Provider value={styleSettings}>
     <div className="pm-root">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Bungee&family=Rye&family=Nunito:ital,wght@0,400;0,600;0,700;1,600&family=Caveat:wght@600;700&family=Space+Mono:wght@400;700&display=swap');
@@ -579,13 +617,14 @@ export default function App() {
         <>
           <Masthead onHome={closeTrip} />
           <div className="pm-content">
-            <HomeView trips={trips} onOpen={openTrip} onNew={() => setShowNewForm(true)} onDelete={deleteTrip} />
+            <HomeView trips={trips} onOpen={openTrip} onNew={() => setShowNewForm(true)} onDelete={deleteTrip} styleSettings={styleSettings} onUpdateStyle={setStyleSettings} />
           </div>
         </>
       )}
 
       {showNewForm && <NewTripModal onCancel={() => setShowNewForm(false)} onCreate={createTrip} />}
     </div>
+    </StyleContext.Provider>
   );
 }
 
@@ -813,6 +852,7 @@ function splitTwoLines(name) {
 }
 
 function ArchedTitle({ name, index }) {
+  const style = useContext(StyleContext);
   const lines = splitTwoLines(name || "");
   const singlePath = "M 15,170 Q 160,115 305,95";
   const topPath = "M 20,130 Q 160,70 300,78";
@@ -825,7 +865,7 @@ function ArchedTitle({ name, index }) {
     return (
       <svg viewBox="0 0 320 220" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
         <defs><path id={pathId} d={singlePath} /></defs>
-        <text fontSize={fontSize} textLength={targetLength} lengthAdjust="spacingAndGlyphs" fill="#FFFFFF" stroke="#2A1509" strokeWidth="3.5" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
+        <text fontSize={fontSize} textLength={targetLength} lengthAdjust="spacingAndGlyphs" fill={style.titleFill} stroke={style.titleStroke} strokeWidth={style.titleStrokeWidth} strokeLinejoin="round" paintOrder="stroke" className="pm-display">
           <textPath href={`#${pathId}`} startOffset="50%" textAnchor="middle">{name}</textPath>
         </text>
       </svg>
@@ -838,16 +878,17 @@ function ArchedTitle({ name, index }) {
   const len2 = targetLengthForLen(line2.length);
   const id1 = `pm-title-arc-top-${index}`;
   const id2 = `pm-title-arc-bottom-${index}`;
+  const twoLineStrokeWidth = style.titleStrokeWidth * 0.857;
   return (
     <svg viewBox="0 0 320 220" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
       <defs>
         <path id={id1} d={topPath} />
         <path id={id2} d={bottomPath} />
       </defs>
-      <text fontSize={fontSize} textLength={len1} lengthAdjust="spacingAndGlyphs" fill="#FFFFFF" stroke="#2A1509" strokeWidth="3" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
+      <text fontSize={fontSize} textLength={len1} lengthAdjust="spacingAndGlyphs" fill={style.titleFill} stroke={style.titleStroke} strokeWidth={twoLineStrokeWidth} strokeLinejoin="round" paintOrder="stroke" className="pm-display">
         <textPath href={`#${id1}`} startOffset="50%" textAnchor="middle">{line1}</textPath>
       </text>
-      <text fontSize={fontSize} textLength={len2} lengthAdjust="spacingAndGlyphs" fill="#FFFFFF" stroke="#2A1509" strokeWidth="3" strokeLinejoin="round" paintOrder="stroke" className="pm-display">
+      <text fontSize={fontSize} textLength={len2} lengthAdjust="spacingAndGlyphs" fill={style.titleFill} stroke={style.titleStroke} strokeWidth={twoLineStrokeWidth} strokeLinejoin="round" paintOrder="stroke" className="pm-display">
         <textPath href={`#${id2}`} startOffset="50%" textAnchor="middle">{line2}</textPath>
       </text>
     </svg>
@@ -902,8 +943,9 @@ function TripCard({ trip, index, onOpen, onDelete, flipping, onStartFlip }) {
   );
 }
 
-function HomeView({ trips, onOpen, onNew, onDelete }) {
+function HomeView({ trips, onOpen, onNew, onDelete, styleSettings, onUpdateStyle }) {
   const [flippingId, setFlippingId] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
 
   function handleOpen(tripId) {
     if (flippingId) return;
@@ -911,18 +953,31 @@ function HomeView({ trips, onOpen, onNew, onDelete }) {
     setTimeout(() => onOpen(tripId), 480);
   }
 
+  const tableValues = posterizeTable(styleSettings.steps, styleSettings.range);
+
   return (
     <div>
       <svg width="0" height="0" style={{ position: "absolute" }}>
         <filter id="pm-cartoonize" colorInterpolationFilters="sRGB">
-          <feColorMatrix type="saturate" values="0.7" />
+          <feColorMatrix type="saturate" values={styleSettings.saturate} />
           <feComponentTransfer>
-            <feFuncR type="discrete" tableValues="0 0.25 0.5 0.75 1" />
-            <feFuncG type="discrete" tableValues="0 0.25 0.5 0.75 1" />
-            <feFuncB type="discrete" tableValues="0 0.25 0.5 0.75 1" />
+            <feFuncR type="discrete" tableValues={tableValues} />
+            <feFuncG type="discrete" tableValues={tableValues} />
+            <feFuncB type="discrete" tableValues={tableValues} />
           </feComponentTransfer>
         </filter>
       </svg>
+
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
+        <button
+          onClick={() => setShowSettings(true)}
+          aria-label="Style settings"
+          style={{ background: "none", border: "1.5px solid rgba(42,32,25,0.3)", borderRadius: "50%", width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--ink)" }}
+        >
+          <Settings size={16} />
+        </button>
+      </div>
+
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 32, paddingTop: 20 }}>
         {trips.map((trip, i) => (
           <TripCard key={trip.id} trip={trip} index={i} onOpen={onOpen} onDelete={onDelete} flipping={flippingId === trip.id} onStartFlip={handleOpen} />
@@ -947,6 +1002,69 @@ function HomeView({ trips, onOpen, onNew, onDelete }) {
           <span className="pm-mono" style={{ fontSize: 12 }}>start a new trip</span>
         </div>
       </div>
+
+      {showSettings && <StyleSettingsPanel value={styleSettings} onChange={onUpdateStyle} onClose={() => setShowSettings(false)} />}
+    </div>
+  );
+}
+
+function StyleSettingsPanel({ value, onChange, onClose }) {
+  function set(patch) { onChange((s) => ({ ...s, ...patch })); }
+
+  return (
+    <div
+      onClick={onClose}
+      style={{ position: "fixed", inset: 0, background: "rgba(42,32,25,0.25)", zIndex: 50, display: "flex", justifyContent: "flex-end" }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{ width: 300, maxWidth: "85vw", height: "100%", background: "#FFFDF9", boxShadow: "-8px 0 24px rgba(0,0,0,0.2)", padding: 20, overflowY: "auto" }}
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+          <span className="pm-display" style={{ fontSize: 18 }}>Style</span>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)" }} aria-label="Close"><X size={18} /></button>
+        </div>
+        <div style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 18 }}>Changes apply everywhere right away.</div>
+
+        <div className="pm-label">Postcard filter</div>
+        <SettingsSlider label="Saturation" min={0} max={1.5} step={0.05} value={value.saturate} onChange={(v) => set({ saturate: v })} />
+        <SettingsSlider label="Posterize steps" min={2} max={8} step={1} value={value.steps} onChange={(v) => set({ steps: v })} />
+        <SettingsSlider label="Tone range" min={0} max={0.4} step={0.02} value={value.range} onChange={(v) => set({ range: v })} />
+
+        <div className="pm-label" style={{ marginTop: 18 }}>Title text</div>
+        <SettingsColor label="Fill" value={value.titleFill} onChange={(v) => set({ titleFill: v })} />
+        <SettingsColor label="Outline" value={value.titleStroke} onChange={(v) => set({ titleStroke: v })} />
+        <SettingsSlider label="Outline width" min={0} max={8} step={0.5} value={value.titleStrokeWidth} onChange={(v) => set({ titleStrokeWidth: v })} />
+
+        <button
+          className="pm-btn pm-btn-ghost"
+          style={{ marginTop: 20, width: "100%", justifyContent: "center", color: "var(--ink)" }}
+          onClick={() => onChange(() => DEFAULT_STYLE_SETTINGS)}
+        >
+          Reset to defaults
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SettingsSlider({ label, min, max, step, value, onChange }) {
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--ink)", marginBottom: 4 }}>
+        <span>{label}</span>
+        <span className="pm-mono" style={{ fontSize: 11, color: "var(--ink-soft)" }}>{value}</span>
+      </div>
+      <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(parseFloat(e.target.value))} style={{ width: "100%" }} />
+    </div>
+  );
+}
+
+function SettingsColor({ label, value, onChange }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+      <span style={{ fontSize: 12, color: "var(--ink)" }}>{label}</span>
+      <input type="color" value={value} onChange={(e) => onChange(e.target.value)} style={{ width: 36, height: 24, border: "none", padding: 0, borderRadius: 4, cursor: "pointer" }} />
     </div>
   );
 }
@@ -1812,25 +1930,26 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, dragHandleP
 
 function StashPocket({ stash, updateStash, defaultOpen, label }) {
   const [open, setOpen] = useState(!!defaultOpen);
+  const hasContent = !!(stash && stash.notes && stash.notes.trim());
 
   return (
-    <div style={{ marginTop: 16 }}>
-      <button onClick={() => setOpen(!open)} className="pm-mono" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)", fontSize: 11, display: "flex", alignItems: "center", gap: 6, padding: 0 }}>
-        <PenLine size={12} /> {open ? "tuck the pocket away" : (label || "tucked-away details")}
-        <ChevronDown size={12} style={{ transform: open ? "rotate(180deg)" : "none" }} />
+    <div style={{ border: "2px solid rgba(31,86,115,0.35)", borderRadius: 10, padding: 10, minHeight: 46, background: "rgba(203,225,240,0.4)" }}>
+      <button onClick={() => setOpen(!open)} className="pm-mono" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)", fontSize: 11, display: "flex", alignItems: "center", gap: 6, padding: 0, width: "100%" }}>
+        <PenLine size={12} /> {label || "Notes"}
+        <ChevronDown size={12} style={{ marginLeft: "auto", transform: open ? "rotate(180deg)" : "none" }} />
       </button>
 
-      {open && (
-        <div style={{ marginTop: 12 }}>
-          <textarea
-            className="pm-input"
-            value={stash.notes || ""}
-            onChange={(e) => updateStash((s) => ({ ...s, notes: e.target.value }))}
-            placeholder="Booking codes, confirmation numbers, anything worth keeping handy…"
-            rows={4}
-            style={{ width: "100%", resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 }}
-          />
-        </div>
+      {open ? (
+        <textarea
+          className="pm-input"
+          value={stash.notes || ""}
+          onChange={(e) => updateStash((s) => ({ ...s, notes: e.target.value }))}
+          placeholder="Booking codes, confirmation numbers, anything worth keeping handy…"
+          rows={4}
+          style={{ width: "100%", resize: "vertical", fontFamily: "inherit", lineHeight: 1.5, marginTop: 8 }}
+        />
+      ) : (
+        !hasContent && <div style={{ fontSize: 11, color: "var(--ink-soft)", opacity: 0.5, marginTop: 4 }}>drop notes here</div>
       )}
     </div>
   );
@@ -1935,13 +2054,17 @@ function OverviewTab({ trip, updateTrip, addSection, updateSection, removeSectio
   function savePin(id, patch) { updateTrip((t) => ({ ...t, pins: t.pins.map((p) => (p.id === id ? { ...p, ...patch } : p)) })); setExpandedPinId(null); }
   function removePin(id) { updateTrip((t) => ({ ...t, pins: t.pins.filter((p) => p.id !== id) })); setExpandedPinId(null); }
 
+  const [sectionDragOverId, setSectionDragOverId] = useState(null);
+
   function handleSectionDrop(e, dayId) {
     e.preventDefault();
+    setSectionDragOverId(null);
     const data = parseDragData(e);
     if (data && data.type === "section" && dayId) updateSection(data.sectionId, (s) => ({ ...s, beforeDayId: dayId }));
   }
   function handleTrailingSectionDrop(e) {
     e.preventDefault();
+    setSectionDragOverId(null);
     const data = parseDragData(e);
     if (data && data.type === "section") updateSection(data.sectionId, (s) => ({ ...s, beforeDayId: null }));
   }
@@ -1949,6 +2072,22 @@ function OverviewTab({ trip, updateTrip, addSection, updateSection, removeSectio
   const showGroups = trip.type !== "single";
   const dayIds = new Set(days.map((d) => d.id));
   const trailingSections = showGroups ? (trip.sections || []).filter((s) => !s.beforeDayId || !dayIds.has(s.beforeDayId)) : [];
+
+  const timelineRows = [];
+  {
+    let counter = 0;
+    days.forEach((day) => {
+      if (showGroups) {
+        (trip.sections || []).filter((s) => s.beforeDayId === day.id).forEach((section) => {
+          timelineRows.push({ type: "group", key: section.id, section });
+        });
+      }
+      counter += 1;
+      timelineRows.push({ type: "day", key: day.id, day, index: counter });
+    });
+    if (showGroups) trailingSections.forEach((section) => timelineRows.push({ type: "group", key: section.id, section }));
+  }
+  const ROW_GAP = 14;
 
   const unscheduledPins = pins.filter((p) => !p.dayId);
   const unscheduledNotes = notes.filter((n) => !n.dayId);
@@ -1991,24 +2130,59 @@ function OverviewTab({ trip, updateTrip, addSection, updateSection, removeSectio
           </div>
         )}
 
-        <div style={{ display: "grid", gap: 10 }}>
-          {days.map((day, i) => {
+        <div style={{ display: "grid", gap: ROW_GAP }}>
+          {timelineRows.map((row, idx) => {
+            const isLast = idx === timelineRows.length - 1;
+            const connector = !isLast && (
+              <div style={{ position: "absolute", left: 11, top: 24, bottom: -ROW_GAP, width: 2, background: "rgba(60,42,26,0.15)", zIndex: 0 }} />
+            );
+            const circleBase = { width: 24, height: 24, borderRadius: "50%", background: "#3C2A1A", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, position: "relative", zIndex: 1 };
+
+            if (row.type === "group") {
+              const section = row.section;
+              return (
+                <div key={row.key} style={{ position: "relative" }}>
+                  {connector}
+                  <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                    <div style={circleBase}><Flag size={11} /></div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                        <span
+                          draggable
+                          onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", JSON.stringify({ type: "section", sectionId: section.id })); }}
+                          style={{ cursor: "grab", display: "flex", flexShrink: 0, padding: 2 }}
+                        >
+                          <GripVertical size={14} style={{ color: "var(--ink-soft)", opacity: 0.4 }} />
+                        </span>
+                        <input
+                          value={section.label}
+                          onChange={(e) => updateSection(section.id, (s) => ({ ...s, label: arrowify(e.target.value) }))}
+                          style={{ background: "transparent", border: "none", fontSize: 15, fontWeight: 700, color: "var(--ink)", padding: 0, outline: "none", minWidth: 0, flex: 1, fontFamily: "inherit" }}
+                        />
+                        <button onClick={() => removeSection(section.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)", flexShrink: 0 }} aria-label="Remove group"><X size={13} /></button>
+                      </div>
+                      <StashPocket stash={section.stash} updateStash={(fn) => updateSection(section.id, (s) => ({ ...s, stash: fn(s.stash) }))} label="Group notes" />
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
+            const day = row.day, i = row.index;
             const dayPins = pins.filter((p) => p.dayId === day.id);
             const dayNotes = notes.filter((n) => n.dayId === day.id);
-            const dayGroups = showGroups ? (trip.sections || []).filter((s) => s.beforeDayId === day.id) : [];
+            const isDragOver = sectionDragOverId === day.id;
             return (
-              <React.Fragment key={day.id}>
-                {dayGroups.map((section) => (
-                  <div key={section.id} style={{ marginLeft: 34 }}>
-                    <SectionHeader section={section} onUpdate={(fn) => updateSection(section.id, fn)} onRemove={() => removeSection(section.id)} />
-                  </div>
-                ))}
+              <div key={row.key} style={{ position: "relative" }}>
+                {connector}
                 <div
                   onDragOver={showGroups ? (e) => e.preventDefault() : undefined}
+                  onDragEnter={showGroups ? () => setSectionDragOverId(day.id) : undefined}
+                  onDragLeave={showGroups ? () => setSectionDragOverId((cur) => (cur === day.id ? null : cur)) : undefined}
                   onDrop={showGroups ? (e) => handleSectionDrop(e, day.id) : undefined}
-                  style={{ display: "flex", gap: 10, alignItems: "flex-start" }}
+                  style={{ display: "flex", gap: 10, alignItems: "flex-start", borderRadius: 12, outline: isDragOver ? "2px dashed var(--rust)" : "none", outlineOffset: 4, transition: "outline 0.1s ease" }}
                 >
-                  <div className="pm-mono" style={{ width: 24, height: 24, borderRadius: "50%", background: "#3C2A1A", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, flexShrink: 0, marginTop: 10 }}>{i + 1}</div>
+                  <div className="pm-mono" style={{ ...circleBase, fontSize: 10 }}>{i}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="pm-mono" style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 4 }}>{day.city || formatDateShort(day.date)}</div>
                     <DropZone id={day.id}>
@@ -2024,20 +2198,19 @@ function OverviewTab({ trip, updateTrip, addSection, updateSection, removeSectio
                     </DropZone>
                   </div>
                 </div>
-              </React.Fragment>
+              </div>
             );
           })}
         </div>
 
-        {showGroups && trailingSections.length > 0 && (
-          <div style={{ marginLeft: 34, marginTop: 10 }}>
-            {trailingSections.map((section) => (
-              <SectionHeader key={section.id} section={section} onUpdate={(fn) => updateSection(section.id, fn)} onRemove={() => removeSection(section.id)} />
-            ))}
-          </div>
-        )}
         {showGroups && (
-          <div onDragOver={(e) => e.preventDefault()} onDrop={handleTrailingSectionDrop} style={{ height: 20 }} />
+          <div
+            onDragOver={(e) => e.preventDefault()}
+            onDragEnter={() => setSectionDragOverId("__trailing__")}
+            onDragLeave={() => setSectionDragOverId((cur) => (cur === "__trailing__" ? null : cur))}
+            onDrop={handleTrailingSectionDrop}
+            style={{ height: 28, marginTop: 4, borderRadius: 8, border: sectionDragOverId === "__trailing__" ? "2px dashed var(--rust)" : "2px dashed transparent", transition: "border-color 0.1s ease" }}
+          />
         )}
 
         <DragOverlay>
