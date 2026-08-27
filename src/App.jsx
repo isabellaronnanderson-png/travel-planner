@@ -34,6 +34,39 @@ function posterizeTable(steps, range) {
   return vals.join(" ");
 }
 
+function flatTimelineList(trip) {
+  const showGroups = trip.type !== "single";
+  const dayIds = new Set(trip.days.map((d) => d.id));
+  const trailingSections = showGroups ? (trip.sections || []).filter((s) => !s.beforeDayId || !dayIds.has(s.beforeDayId)) : [];
+  const list = [];
+  trip.days.forEach((day) => {
+    if (showGroups) {
+      (trip.sections || []).filter((s) => s.beforeDayId === day.id).forEach((s) => list.push({ type: "group", id: s.id }));
+    }
+    list.push({ type: "day", id: day.id });
+  });
+  if (showGroups) trailingSections.forEach((s) => list.push({ type: "group", id: s.id }));
+  return list;
+}
+
+function applyFlatTimelineList(trip, list) {
+  const daysById = Object.fromEntries(trip.days.map((d) => [d.id, d]));
+  const sectionsById = Object.fromEntries((trip.sections || []).map((s) => [s.id, s]));
+  const newDays = list.filter((b) => b.type === "day").map((b) => daysById[b.id]).filter(Boolean);
+  const newSections = [];
+  for (let i = 0; i < list.length; i++) {
+    const block = list[i];
+    if (block.type !== "group") continue;
+    let beforeDayId = null;
+    for (let j = i + 1; j < list.length; j++) {
+      if (list[j].type === "day") { beforeDayId = list[j].id; break; }
+    }
+    const section = sectionsById[block.id];
+    if (section) newSections.push({ ...section, beforeDayId });
+  }
+  return { ...trip, days: newDays, sections: newSections };
+}
+
 const uid = () => Math.random().toString(36).slice(2, 10);
 
 function addDays(dateStr, n) {
@@ -410,6 +443,7 @@ export default function App() {
   const [loaded, setLoaded] = useState(false);
   const [activeTripId, setActiveTripId] = useState(null);
   const [showNewForm, setShowNewForm] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [styleSettings, setStyleSettings] = useState(DEFAULT_STYLE_SETTINGS);
   const [styleLoaded, setStyleLoaded] = useState(false);
 
@@ -615,14 +649,22 @@ export default function App() {
         </>
       ) : (
         <>
+          <button
+            onClick={() => setShowSettings(true)}
+            aria-label="Style settings"
+            style={{ position: "fixed", top: 16, right: 16, zIndex: 30, background: "#FFFDF9", border: "1.5px solid rgba(42,32,25,0.3)", borderRadius: "50%", width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--ink)", boxShadow: "0 2px 6px rgba(0,0,0,0.15)" }}
+          >
+            <Settings size={16} />
+          </button>
           <Masthead onHome={closeTrip} />
           <div className="pm-content">
-            <HomeView trips={trips} onOpen={openTrip} onNew={() => setShowNewForm(true)} onDelete={deleteTrip} styleSettings={styleSettings} onUpdateStyle={setStyleSettings} />
+            <HomeView trips={trips} onOpen={openTrip} onNew={() => setShowNewForm(true)} onDelete={deleteTrip} styleSettings={styleSettings} />
           </div>
         </>
       )}
 
       {showNewForm && <NewTripModal onCancel={() => setShowNewForm(false)} onCreate={createTrip} />}
+      {showSettings && <StyleSettingsPanel value={styleSettings} onChange={setStyleSettings} onClose={() => setShowSettings(false)} />}
     </div>
     </StyleContext.Provider>
   );
@@ -943,9 +985,8 @@ function TripCard({ trip, index, onOpen, onDelete, flipping, onStartFlip }) {
   );
 }
 
-function HomeView({ trips, onOpen, onNew, onDelete, styleSettings, onUpdateStyle }) {
+function HomeView({ trips, onOpen, onNew, onDelete, styleSettings }) {
   const [flippingId, setFlippingId] = useState(null);
-  const [showSettings, setShowSettings] = useState(false);
 
   function handleOpen(tripId) {
     if (flippingId) return;
@@ -967,16 +1008,6 @@ function HomeView({ trips, onOpen, onNew, onDelete, styleSettings, onUpdateStyle
           </feComponentTransfer>
         </filter>
       </svg>
-
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
-        <button
-          onClick={() => setShowSettings(true)}
-          aria-label="Style settings"
-          style={{ background: "none", border: "1.5px solid rgba(42,32,25,0.3)", borderRadius: "50%", width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--ink)" }}
-        >
-          <Settings size={16} />
-        </button>
-      </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 32, paddingTop: 20 }}>
         {trips.map((trip, i) => (
@@ -1002,8 +1033,6 @@ function HomeView({ trips, onOpen, onNew, onDelete, styleSettings, onUpdateStyle
           <span className="pm-mono" style={{ fontSize: 12 }}>start a new trip</span>
         </div>
       </div>
-
-      {showSettings && <StyleSettingsPanel value={styleSettings} onChange={onUpdateStyle} onClose={() => setShowSettings(false)} />}
     </div>
   );
 }
@@ -1548,9 +1577,6 @@ function ItineraryTab({ trip, expandedDayIds, toggleDay, updateDay, reorderDays,
                         <div style={{ flex: 1, borderRadius: 12, overflow: "hidden", boxShadow: isCrossDayTarget ? "0 0 0 3px rgba(46,89,64,0.35)" : "0 2px 8px rgba(0,0,0,0.25)" }}>
                           <DayCardBody
                             day={day} expanded={expandedDayIds.has(day.id)} onToggle={() => toggleDay(day.id)} updateDay={(fn) => updateDay(day.id, fn)} hideCity
-                            dragHandleProps={handleProps}
-                            canMoveUp={i > 0} canMoveDown={i < trip.days.length - 1}
-                            onMoveUp={() => reorderDays(i, i - 1)} onMoveDown={() => reorderDays(i, i + 1)}
                             activeAct={activeAct} overAct={overAct}
                             allPins={trip.pins}
                             allNotes={trip.notes}
@@ -1606,9 +1632,6 @@ function ItineraryTab({ trip, expandedDayIds, toggleDay, updateDay, reorderDays,
                         <div style={{ borderRadius: 12, overflow: "hidden", boxShadow: isCrossDayTarget ? "0 0 0 3px rgba(46,89,64,0.35)" : "0 2px 8px rgba(0,0,0,0.25)" }}>
                           <DayCardBody
                             day={day} expanded={expandedDayIds.has(day.id)} onToggle={() => toggleDay(day.id)} updateDay={(fn) => updateDay(day.id, fn)}
-                            dragHandleProps={handleProps}
-                            canMoveUp={i > 0} canMoveDown={i < trip.days.length - 1}
-                            onMoveUp={() => reorderDays(i, i - 1)} onMoveDown={() => reorderDays(i, i + 1)}
                             activeAct={activeAct} overAct={overAct}
                             allPins={trip.pins}
                             allNotes={trip.notes}
@@ -1791,7 +1814,7 @@ function SimpleStopCard({ dragHandleProps, titleValue, onTitleChange, titleReadO
 }
 
 
-function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, dragHandleProps, canMoveUp, canMoveDown, onMoveUp, onMoveDown, activeAct, overAct, allPins, allNotes, categories, onUnassignPin, onUnassignNote, onUpdateNoteText }) {
+function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, activeAct, overAct, allPins, allNotes, categories, onUnassignPin, onUnassignNote, onUpdateNoteText }) {
   const [expandedActIds, setExpandedActIds] = useState(() => new Set());
 
   function toggleSet(setter, id) {
@@ -1819,7 +1842,6 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, dragHandleP
     <div>
       <Textured color={p.color} texture="woven" onClick={onToggle} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", cursor: "pointer", gap: 12, borderRadius: expanded ? "12px 12px 0 0" : 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-          <DragHandleStack dragHandleProps={dragHandleProps} onUp={onMoveUp} onDown={onMoveDown} canUp={canMoveUp} canDown={canMoveDown} />
           <div style={{ minWidth: 0 }}>
             <div className="pm-mono" style={{ fontSize: 11, color: "rgba(31,86,115,0.7)" }}>{formatDate(day.date)}</div>
             <div style={{ fontSize: 17, fontWeight: 700, marginTop: 2, color: p.textColor }}>{hideCity ? (day.blurb || "Untitled day") : (day.city || "Untitled stop")}</div>
@@ -2054,19 +2076,17 @@ function OverviewTab({ trip, updateTrip, addSection, updateSection, removeSectio
   function savePin(id, patch) { updateTrip((t) => ({ ...t, pins: t.pins.map((p) => (p.id === id ? { ...p, ...patch } : p)) })); setExpandedPinId(null); }
   function removePin(id) { updateTrip((t) => ({ ...t, pins: t.pins.filter((p) => p.id !== id) })); setExpandedPinId(null); }
 
-  const [sectionDragOverId, setSectionDragOverId] = useState(null);
-
-  function handleSectionDrop(e, dayId) {
-    e.preventDefault();
-    setSectionDragOverId(null);
-    const data = parseDragData(e);
-    if (data && data.type === "section" && dayId) updateSection(data.sectionId, (s) => ({ ...s, beforeDayId: dayId }));
-  }
-  function handleTrailingSectionDrop(e) {
-    e.preventDefault();
-    setSectionDragOverId(null);
-    const data = parseDragData(e);
-    if (data && data.type === "section") updateSection(data.sectionId, (s) => ({ ...s, beforeDayId: null }));
+  function moveTimelineRow(index, direction) {
+    updateTrip((t) => {
+      const list = flatTimelineList(t);
+      const j = index + direction;
+      if (j < 0 || j >= list.length) return t;
+      const newList = list.slice();
+      const tmp = newList[index];
+      newList[index] = newList[j];
+      newList[j] = tmp;
+      return applyFlatTimelineList(t, newList);
+    });
   }
 
   const showGroups = trip.type !== "single";
@@ -2088,6 +2108,7 @@ function OverviewTab({ trip, updateTrip, addSection, updateSection, removeSectio
     if (showGroups) trailingSections.forEach((section) => timelineRows.push({ type: "group", key: section.id, section }));
   }
   const ROW_GAP = 14;
+  const ICON_COL_HEIGHT = 58;
 
   const unscheduledPins = pins.filter((p) => !p.dayId);
   const unscheduledNotes = notes.filter((n) => !n.dayId);
@@ -2132,11 +2153,22 @@ function OverviewTab({ trip, updateTrip, addSection, updateSection, removeSectio
 
         <div style={{ display: "grid", gap: ROW_GAP }}>
           {timelineRows.map((row, idx) => {
+            const isFirst = idx === 0;
             const isLast = idx === timelineRows.length - 1;
             const connector = !isLast && (
-              <div style={{ position: "absolute", left: 11, top: 24, bottom: -ROW_GAP, width: 2, background: "rgba(60,42,26,0.15)", zIndex: 0 }} />
+              <div style={{ position: "absolute", left: 11, top: ICON_COL_HEIGHT, bottom: -ROW_GAP, width: 2, background: "rgba(60,42,26,0.15)", zIndex: 0 }} />
             );
-            const circleBase = { width: 24, height: 24, borderRadius: "50%", background: "#3C2A1A", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, position: "relative", zIndex: 1 };
+            const circleBase = { width: 24, height: 24, borderRadius: "50%", background: "#3C2A1A", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 };
+            const arrowBtnStyle = (disabled) => ({ background: "none", border: "none", width: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: disabled ? "default" : "pointer", color: "var(--ink-soft)", opacity: disabled ? 0.25 : 0.7, padding: 0 });
+            const iconCol = (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, flexShrink: 0, position: "relative", zIndex: 1 }}>
+                <button onClick={() => moveTimelineRow(idx, -1)} disabled={isFirst} aria-label="Move up" style={arrowBtnStyle(isFirst)}><ChevronUp size={13} /></button>
+                <div style={circleBase} className={row.type === "day" ? "pm-mono" : undefined}>
+                  {row.type === "group" ? <Flag size={11} /> : row.index}
+                </div>
+                <button onClick={() => moveTimelineRow(idx, 1)} disabled={isLast} aria-label="Move down" style={arrowBtnStyle(isLast)}><ChevronDown size={13} /></button>
+              </div>
+            );
 
             if (row.type === "group") {
               const section = row.section;
@@ -2144,16 +2176,9 @@ function OverviewTab({ trip, updateTrip, addSection, updateSection, removeSectio
                 <div key={row.key} style={{ position: "relative" }}>
                   {connector}
                   <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                    <div style={circleBase}><Flag size={11} /></div>
+                    {iconCol}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                        <span
-                          draggable
-                          onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", JSON.stringify({ type: "section", sectionId: section.id })); }}
-                          style={{ cursor: "grab", display: "flex", flexShrink: 0, padding: 2 }}
-                        >
-                          <GripVertical size={14} style={{ color: "var(--ink-soft)", opacity: 0.4 }} />
-                        </span>
                         <input
                           value={section.label}
                           onChange={(e) => updateSection(section.id, (s) => ({ ...s, label: arrowify(e.target.value) }))}
@@ -2171,18 +2196,11 @@ function OverviewTab({ trip, updateTrip, addSection, updateSection, removeSectio
             const day = row.day, i = row.index;
             const dayPins = pins.filter((p) => p.dayId === day.id);
             const dayNotes = notes.filter((n) => n.dayId === day.id);
-            const isDragOver = sectionDragOverId === day.id;
             return (
               <div key={row.key} style={{ position: "relative" }}>
                 {connector}
-                <div
-                  onDragOver={showGroups ? (e) => e.preventDefault() : undefined}
-                  onDragEnter={showGroups ? () => setSectionDragOverId(day.id) : undefined}
-                  onDragLeave={showGroups ? () => setSectionDragOverId((cur) => (cur === day.id ? null : cur)) : undefined}
-                  onDrop={showGroups ? (e) => handleSectionDrop(e, day.id) : undefined}
-                  style={{ display: "flex", gap: 10, alignItems: "flex-start", borderRadius: 12, outline: isDragOver ? "2px dashed var(--rust)" : "none", outlineOffset: 4, transition: "outline 0.1s ease" }}
-                >
-                  <div className="pm-mono" style={{ ...circleBase, fontSize: 10 }}>{i}</div>
+                <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                  {iconCol}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="pm-mono" style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 4 }}>{day.city || formatDateShort(day.date)}</div>
                     <DropZone id={day.id}>
@@ -2202,16 +2220,6 @@ function OverviewTab({ trip, updateTrip, addSection, updateSection, removeSectio
             );
           })}
         </div>
-
-        {showGroups && (
-          <div
-            onDragOver={(e) => e.preventDefault()}
-            onDragEnter={() => setSectionDragOverId("__trailing__")}
-            onDragLeave={() => setSectionDragOverId((cur) => (cur === "__trailing__" ? null : cur))}
-            onDrop={handleTrailingSectionDrop}
-            style={{ height: 28, marginTop: 4, borderRadius: 8, border: sectionDragOverId === "__trailing__" ? "2px dashed var(--rust)" : "2px dashed transparent", transition: "border-color 0.1s ease" }}
-          />
-        )}
 
         <DragOverlay>
           {activePin && (
