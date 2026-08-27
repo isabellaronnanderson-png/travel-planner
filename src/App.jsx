@@ -1542,12 +1542,6 @@ function ItineraryTab({ trip, expandedDayIds, toggleDay, updateDay, reorderDays,
     }
   }
 
-  function handleSectionDrop(e, dayId) {
-    e.preventDefault();
-    const data = parseDragData(e);
-    if (data && data.type === "section" && dayId) updateSection(data.sectionId, (s) => ({ ...s, beforeDayId: dayId }));
-  }
-
   const dragOverlay = (
     <DragOverlay>
       {activeDay ? <DayDragPreview day={activeDay} index={activeIndex} /> : null}
@@ -1622,8 +1616,6 @@ function ItineraryTab({ trip, expandedDayIds, toggleDay, updateDay, reorderDays,
                     const isCrossDayTarget = activeAct && activeAct.dayId !== day.id && overAct && overAct.dayId === day.id && !expandedDayIds.has(day.id);
                     return (
                       <div
-                        onDragOver={(e) => e.preventDefault()}
-                        onDrop={(e) => handleSectionDrop(e, day.id)}
                         style={{ marginBottom: 14 }}
                       >
                         <div className="pm-mono" style={{ position: "absolute", left: -30, top: 14, width: 26, height: 26, borderRadius: "50%", background: "#3C2A1A", border: "2px solid var(--bg)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11 }}>
@@ -1693,29 +1685,19 @@ function AddSectionButton({ firstDayId, onAdd }) {
 }
 
 function SectionHeader({ section, onUpdate, onRemove }) {
-  const [dragging, setDragging] = useState(false);
   return (
-    <div style={{ marginBottom: 10, marginTop: 4, opacity: dragging ? 0.4 : 1 }}>
+    <div style={{ marginBottom: 10, marginTop: 4 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 0 }}>
-          <span
-            draggable
-            onDragStart={(e) => { setDragging(true); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", JSON.stringify({ type: "section", sectionId: section.id })); }}
-            onDragEnd={() => setDragging(false)}
-            style={{ display: "flex", cursor: "grab", flexShrink: 0 }}
-          >
-            <GripVertical size={14} style={{ color: "var(--ink-soft)", opacity: 0.4 }} />
-          </span>
           <Flag size={13} style={{ color: "var(--rust)", opacity: 0.7, flexShrink: 0 }} />
           <input
             value={section.label}
             onChange={(e) => onUpdate((s) => ({ ...s, label: arrowify(e.target.value) }))}
-            style={{ background: "transparent", border: "none", fontSize: 15, fontWeight: 700, color: "var(--ink)", padding: 0, outline: "none", minWidth: 0, flex: 1, fontFamily: "inherit" }}
+            style={{ background: "transparent", border: "none", fontSize: 19, fontWeight: 700, color: "var(--ink)", padding: 0, outline: "none", minWidth: 0, flex: 1, fontFamily: "inherit" }}
           />
         </div>
         <button onClick={onRemove} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-soft)" }} aria-label="Remove group"><X size={13} /></button>
       </div>
-      <StashPocket stash={section.stash} updateStash={(fn) => onUpdate((s) => ({ ...s, stash: fn(s.stash) }))} label="Group notes" />
     </div>
   );
 }
