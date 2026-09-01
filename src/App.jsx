@@ -1840,6 +1840,17 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, activeAct, 
             <input className="pm-input" value={titleValue} onChange={(e) => updateDay((d) => ({ ...d, [titleField]: arrowify(e.target.value) }))} placeholder="" />
           </div>
 
+          <div style={{ marginTop: 12 }}>
+            <textarea
+              className="pm-input"
+              value={(day.stash && day.stash.notes) || ""}
+              onChange={(e) => updateDay((d) => ({ ...d, stash: { ...d.stash, notes: e.target.value } }))}
+              placeholder="Rough notes — arrival time, flight details, anything worth jotting down…"
+              rows={2}
+              style={{ width: "100%", resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 }}
+            />
+          </div>
+
           <div style={{ marginTop: 16 }}>
             <div className="pm-mono" style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--ink-soft)", marginBottom: 8 }}>Activities</div>
             <SortableContext items={activities.map((a) => a.id)} strategy={verticalListSortingStrategy}>
