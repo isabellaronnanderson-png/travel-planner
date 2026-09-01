@@ -2312,6 +2312,16 @@ function PinForm({ days, categories, onCancel, onSubmit, initial, submitLabel, h
         setLatLng({ lat: place.geometry.location.lat(), lng: place.geometry.location.lng() });
       }
     });
+    return () => {
+      if (acRef.current && window.google && window.google.maps) {
+        window.google.maps.event.clearInstanceListeners(acRef.current);
+      }
+      acRef.current = null;
+      // Google's Autocomplete widget appends a dropdown container to document.body
+      // that isn't removed on unmount, so any leftover ones are cleared here to
+      // prevent them from silently blocking clicks on elements underneath them.
+      document.querySelectorAll(".pac-container").forEach((el) => el.remove());
+    };
   }, [placesReady]);
 
   function submit() {
@@ -2486,11 +2496,18 @@ function StopsTab({ trip, updateTrip, onPlan }) {
         const lng = place.geometry.location.lng();
         setEditingPinId(null);
         setPendingPlace({ lat, lng, name: place.name || "" });
-        if (searchRef.current) searchRef.current.value = "";
+        if (searchRef.current) {
+          searchRef.current.value = "";
+          searchRef.current.blur();
+        }
       });
     }
 
-    return () => { markersRef.current.forEach((m) => m.setMap(null)); markersRef.current = []; };
+    return () => {
+      markersRef.current.forEach((m) => m.setMap(null));
+      markersRef.current = [];
+      document.querySelectorAll(".pac-container").forEach((el) => el.remove());
+    };
   }, [status]);
 
   useEffect(() => {
