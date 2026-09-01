@@ -2369,7 +2369,7 @@ function PinForm({ days, categories, onCancel, onSubmit, initial, submitLabel, h
 
 function Modal({ onCancel, children }) {
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20 }} onClick={onCancel}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 5000, padding: 20 }} onClick={onCancel}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: "#FFFDF9", borderRadius: 14, padding: 24, width: "100%", maxWidth: 380, boxShadow: "0 10px 30px rgba(0,0,0,0.4)", maxHeight: "90vh", overflowY: "auto" }}>
         {children}
       </div>
@@ -2483,6 +2483,10 @@ function StopsTab({ trip, updateTrip, onPlan }) {
       gestureHandling: "cooperative",
       zoomControl: true,
       zoomControlOptions: { style: window.google.maps.ZoomControlStyle.LARGE },
+      mapTypeControlOptions: {
+        style: window.google.maps.MapTypeControlStyle.DROPDOWN_MENU,
+        position: window.google.maps.ControlPosition.TOP_LEFT,
+      },
     });
     mapObjRef.current = map;
     map.addListener("click", (e) => { setPendingPlace({ lat: e.latLng.lat(), lng: e.latLng.lng() }); setEditingPinId(null); });
