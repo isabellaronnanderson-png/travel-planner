@@ -2438,7 +2438,7 @@ function StopsTab({ trip, updateTrip, onPlan }) {
   const [apiKey, setApiKey] = useState(() => getStoredApiKey());
   const [keyInput, setKeyInput] = useState("");
   const [status, setStatus] = useState(apiKey ? "loading" : "needs-key");
-  const [pendingLatLng, setPendingLatLng] = useState(null);
+  const [pendingPlace, setPendingPlace] = useState(null);
   const [editingPinId, setEditingPinId] = useState(null);
   const [filterCategory, setFilterCategory] = useState("all");
   const mapRef = useRef(null);
@@ -2475,7 +2475,7 @@ function StopsTab({ trip, updateTrip, onPlan }) {
       zoomControlOptions: { style: window.google.maps.ZoomControlStyle.LARGE },
     });
     mapObjRef.current = map;
-    map.addListener("click", (e) => { setPendingLatLng({ lat: e.latLng.lat(), lng: e.latLng.lng() }); setEditingPinId(null); });
+    map.addListener("click", (e) => { setPendingPlace({ lat: e.latLng.lat(), lng: e.latLng.lng() }); setEditingPinId(null); });
 
     if (searchRef.current) {
       const ac = new window.google.maps.places.Autocomplete(searchRef.current, { fields: ["geometry", "name"] });
@@ -2484,7 +2484,8 @@ function StopsTab({ trip, updateTrip, onPlan }) {
         if (!place || !place.geometry) return;
         const lat = place.geometry.location.lat();
         const lng = place.geometry.location.lng();
-        updateTrip((t) => ({ ...t, pins: [...t.pins, { id: uid(), dayId: null, name: place.name || "Saved place", category: (t.categories && t.categories[0] ? t.categories[0].id : "cat-spot"), note: "", link: "", lat, lng }] }));
+        setEditingPinId(null);
+        setPendingPlace({ lat, lng, name: place.name || "" });
         if (searchRef.current) searchRef.current.value = "";
       });
     }
@@ -2509,7 +2510,7 @@ function StopsTab({ trip, updateTrip, onPlan }) {
           anchor: new window.google.maps.Point(7, 20),
         },
       });
-      marker.addListener("click", () => { setEditingPinId(pin.id); setPendingLatLng(null); });
+      marker.addListener("click", () => { setEditingPinId(pin.id); setPendingPlace(null); });
       markersRef.current.push(marker);
     });
     if (geocoded.length > 0) {
@@ -2565,9 +2566,9 @@ function StopsTab({ trip, updateTrip, onPlan }) {
       <div ref={mapRef} style={{ width: "100%", height: 380, borderRadius: 12, border: "1.5px solid rgba(42,32,25,0.25)", background: "#FAF8F4" }} />
       {status === "loading" && <div style={{ marginTop: 10, fontSize: 12, opacity: 0.8 }}>loading map…</div>}
 
-      {pendingLatLng && (
-        <Modal onCancel={() => setPendingLatLng(null)}>
-          <PinForm title="New stop" days={trip.days} categories={categories} initial={{ lat: pendingLatLng.lat, lng: pendingLatLng.lng }} onCancel={() => setPendingLatLng(null)} onSubmit={addPin} />
+      {pendingPlace && (
+        <Modal onCancel={() => setPendingPlace(null)}>
+          <PinForm title="New stop" days={trip.days} categories={categories} initial={pendingPlace} onCancel={() => setPendingPlace(null)} onSubmit={addPin} />
         </Modal>
       )}
 
