@@ -1895,12 +1895,13 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, activeAct, 
                       expanded={isExp}
                       onToggleExpand={() => toggleSet(setExpandedActIds, a.id)}
                       expandedContent={
-                        <textarea
+                        <AutoGrowNotes
                           className="pm-textarea"
-                          style={{ fontSize: 13, minHeight: 50, background: "#FAF8F4", border: "1.5px solid rgba(46,43,38,0.15)" }}
+                          style={{ fontSize: 13, background: "#FAF8F4", border: "1.5px solid rgba(46,43,38,0.15)" }}
                           value={a.text}
-                          onChange={(e) => updateActivity(a.id, { text: arrowify(e.target.value) })}
+                          onChange={(v) => updateActivity(a.id, { text: arrowify(v) })}
                           placeholder=""
+                          rows={2}
                         />
                       }
                       onRemove={() => removeActivity(a.id)}
@@ -1928,18 +1929,67 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, activeAct, 
           </div>
 
           <div style={{ marginTop: 16 }}>
-            <textarea
-              className="pm-input"
+            <AutoGrowNotes
               value={(day.stash && day.stash.notes) || ""}
-              onChange={(e) => updateDay((d) => ({ ...d, stash: { ...d.stash, notes: e.target.value } }))}
+              onChange={(v) => updateDay((d) => ({ ...d, stash: { ...d.stash, notes: v } }))}
               placeholder="Rough notes — arrival time, flight details, anything worth jotting down…"
-              rows={2}
-              style={{ width: "100%", resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 }}
             />
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+function AutoGrowNotes({ value, onChange, placeholder, rows, className, style }) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.style.height = "auto";
+      ref.current.style.height = ref.current.scrollHeight + "px";
+    }
+  }, [value]);
+
+  function handleChange(e) {
+    onChange(e.target.value.replace(/(^|\n)\* /g, "$1• "));
+  }
+
+  function handleKeyDown(e) {
+    if (e.key !== "Enter") return;
+    const el = e.target;
+    const pos = el.selectionStart;
+    const text = el.value;
+    const lineStart = text.lastIndexOf("\n", pos - 1) + 1;
+    const line = text.slice(lineStart, pos);
+    const bulletMatch = line.match(/^(\s*)• (.*)$/);
+    if (!bulletMatch) return;
+    e.preventDefault();
+    const [, indent, content] = bulletMatch;
+    if (content.trim() === "") {
+      const newText = text.slice(0, lineStart) + text.slice(pos);
+      onChange(newText);
+      requestAnimationFrame(() => { el.selectionStart = el.selectionEnd = lineStart; });
+    } else {
+      const insertion = "\n" + indent + "• ";
+      const newText = text.slice(0, pos) + insertion + text.slice(pos);
+      onChange(newText);
+      const newPos = pos + insertion.length;
+      requestAnimationFrame(() => { el.selectionStart = el.selectionEnd = newPos; });
+    }
+  }
+
+  return (
+    <textarea
+      ref={ref}
+      className={className || "pm-input"}
+      value={value}
+      onChange={handleChange}
+      onKeyDown={handleKeyDown}
+      placeholder={placeholder}
+      rows={rows || 2}
+      style={{ width: "100%", resize: "none", overflow: "hidden", fontFamily: "inherit", lineHeight: 1.5, ...style }}
+    />
   );
 }
 
@@ -1955,14 +2005,14 @@ function StashPocket({ stash, updateStash, defaultOpen, label }) {
       </button>
 
       {open ? (
-        <textarea
-          className="pm-input"
-          value={stash.notes || ""}
-          onChange={(e) => updateStash((s) => ({ ...s, notes: e.target.value }))}
-          placeholder="Booking codes, confirmation numbers, anything worth keeping handy…"
-          rows={4}
-          style={{ width: "100%", resize: "vertical", fontFamily: "inherit", lineHeight: 1.5, marginTop: 8 }}
-        />
+        <div style={{ marginTop: 8 }}>
+          <AutoGrowNotes
+            value={stash.notes || ""}
+            onChange={(v) => updateStash((s) => ({ ...s, notes: v }))}
+            placeholder="Booking codes, confirmation numbers, anything worth keeping handy…"
+            rows={4}
+          />
+        </div>
       ) : (
         !hasContent && <div style={{ fontSize: 11, color: "var(--ink-soft)", opacity: 0.5, marginTop: 4 }}>drop notes here</div>
       )}
