@@ -1840,17 +1840,6 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, activeAct, 
             <input className="pm-input" value={titleValue} onChange={(e) => updateDay((d) => ({ ...d, [titleField]: arrowify(e.target.value) }))} placeholder="" />
           </div>
 
-          <div style={{ marginTop: 12 }}>
-            <textarea
-              className="pm-input"
-              value={(day.stash && day.stash.notes) || ""}
-              onChange={(e) => updateDay((d) => ({ ...d, stash: { ...d.stash, notes: e.target.value } }))}
-              placeholder="Rough notes — arrival time, flight details, anything worth jotting down…"
-              rows={2}
-              style={{ width: "100%", resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 }}
-            />
-          </div>
-
           <div style={{ marginTop: 16 }}>
             <div className="pm-mono" style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--ink-soft)", marginBottom: 8 }}>Activities</div>
             <SortableContext items={activities.map((a) => a.id)} strategy={verticalListSortingStrategy}>
@@ -1936,6 +1925,17 @@ function DayCardBody({ day, expanded, onToggle, updateDay, hideCity, activeAct, 
               </div>
             )}
             <button className="pm-btn pm-btn-ghost" style={{ fontSize: 11, padding: "5px 10px", color: "var(--ink)", borderColor: "rgba(46,43,38,0.3)" }} onClick={addActivity}><Plus size={12} /> add an activity</button>
+          </div>
+
+          <div style={{ marginTop: 16 }}>
+            <textarea
+              className="pm-input"
+              value={(day.stash && day.stash.notes) || ""}
+              onChange={(e) => updateDay((d) => ({ ...d, stash: { ...d.stash, notes: e.target.value } }))}
+              placeholder="Rough notes — arrival time, flight details, anything worth jotting down…"
+              rows={2}
+              style={{ width: "100%", resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 }}
+            />
           </div>
         </div>
       )}
