@@ -2325,6 +2325,7 @@ function PinForm({ days, categories, onCancel, onSubmit, initial, submitLabel, h
   }, [placesReady]);
 
   function submit() {
+    if (nameInputRef.current) nameInputRef.current.blur();
     if (!name) return;
     onSubmit({ name, category, dayId: dayId || null, note, link, lat: latLng ? latLng.lat : undefined, lng: latLng ? latLng.lng : undefined });
   }
@@ -2360,8 +2361,8 @@ function PinForm({ days, categories, onCancel, onSubmit, initial, submitLabel, h
         <input className="pm-input" value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://" />
       </div>
       <div style={{ display: "flex", gap: 8 }}>
-        <button className="pm-btn pm-btn-solid" onClick={submit}>{submitLabel || "Save pin"}</button>
-        <button className="pm-btn pm-btn-ghost" style={{ color: "var(--ink)", borderColor: "rgba(46,43,38,0.3)" }} onClick={onCancel}>Cancel</button>
+        <button type="button" className="pm-btn pm-btn-solid" onClick={submit}>{submitLabel || "Save pin"}</button>
+        <button type="button" className="pm-btn pm-btn-ghost" style={{ color: "var(--ink)", borderColor: "rgba(46,43,38,0.3)" }} onClick={onCancel}>Cancel</button>
       </div>
     </div>
   );
@@ -2546,7 +2547,7 @@ function StopsTab({ trip, updateTrip, onPlan }) {
     }
   }, [status, trip.pins]);
 
-  function addPin(pin) { updateTrip((t) => ({ ...t, pins: [...t.pins, { id: uid(), ...pin }] })); setPendingLatLng(null); }
+  function addPin(pin) { updateTrip((t) => ({ ...t, pins: [...t.pins, { id: uid(), ...pin }] })); setPendingPlace(null); }
   function savePin(id, patch) { updateTrip((t) => ({ ...t, pins: t.pins.map((p) => (p.id === id ? { ...p, ...patch } : p)) })); setEditingPinId(null); }
   function removePin(id) { updateTrip((t) => ({ ...t, pins: t.pins.filter((p) => p.id !== id) })); setEditingPinId(null); }
 
